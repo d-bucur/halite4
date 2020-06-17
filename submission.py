@@ -1,11 +1,20 @@
-from random import choice
 from kaggle_environments.envs.halite.helpers import *
 
 
-def agent(obs):
-    action = {}
-    ship_id = list(obs.players[obs.player][2].keys())[0]
-    ship_action = choice(["NORTH", "SOUTH", "EAST", "WEST", None])
-    if ship_action is not None:
-        action[ship_id] = ship_action
-    return action
+def agent(obs, config):
+    board = Board(obs, config)
+    obs = Observation(obs)
+    config = Configuration(config)
+    #print(board)
+    me = board.current_player
+    #print(board.cells)
+
+    # Set actions for each ship
+    for ship in me.ships:
+        ship.next_action = ShipAction.NORTH
+
+    # Set actions for each shipyard
+    for shipyard in me.shipyards:
+        shipyard.next_action = None
+
+    return me.next_actions
