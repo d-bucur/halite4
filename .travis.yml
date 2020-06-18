@@ -14,13 +14,20 @@ install:
   - virtualenv -p python venv
   - source venv/bin/activate
   - pip install -r requirements.txt
-  - pip install kaggle
 
 
 jobs:
   include:
+    - stage: test
+      before_script:
+        - pip install pytest
+      python:
+        - "3.7"
+      script:
+        - python3.7 -m pytest test
     - stage: release
       before_script:
+        - pip install kaggle
         - export KAGGLE_USERNAME=${KAGGLE_USERNAME}
         - export KAGGLE_KEY=${KAGGLE_KEY}
       script:
