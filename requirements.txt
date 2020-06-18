@@ -1,6 +1,4 @@
 kaggle-environments
 numpy
-requests
-ipython
 scipy
-seaborn
+requests
