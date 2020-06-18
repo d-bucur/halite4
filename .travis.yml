@@ -1,0 +1,29 @@
+language: python
+python: "3.7"
+dist: xenial
+
+env:
+  - KAGGLE_CONFIG_DIR="${TRAVIS_BUILD_DIR}"
+
+stages:
+  - name: release
+    if: tag IS present
+
+cache:
+  paths:
+    - venv
+
+install:
+  - virtualenv -p python venv
+  - source venv/bin/activate
+  - pip install -r requirements.txt
+  - pip install kaggle
+
+
+jobs:
+  include:
+    - stage: release
+      before_script:
+        - echo "${KAGGLE_API_TOKEN}" | base64 -d > ~/.kaggle/kaggle.json
+      script:
+        - kaggle competitions submit -c halite -f submission.py -m "${TRAVIS_TAG}"
