@@ -8,24 +8,34 @@ class AttributeDict(dict):
     __setattr__ = dict.__setitem__
 
 
-internals = AttributeDict()
+_vars = AttributeDict()
+
+
+def internals():
+    # helper method to expose data to notebook reliably with autoreload
+    return _vars
 
 
 def agent(obs, config):
-    global internals
+    global _vars
+    # add method to convert coordinate system back to topleft 0,0
+    Point.norm = property(lambda self: (config.size - 1 - self.y, self.x))
 
     board = Board(obs, config)
     obs = Observation(obs)
     config = Configuration(config)
     me = board.current_player
 
-    internals.halite_map = np.array(obs.halite).reshape((config.size, config.size))
-    # internals.halite_heat = gaussian_filter(internals.halite_map, sigma=1)
-    internals.threat_map = np.zeros((config.size, config.size))
+    _vars.halite_map = np.array(obs.halite).reshape((config.size, config.size))
+    _vars.halite_map = gaussian_filter(_vars.halite_map, sigma=1, mode='wrap')
+
+    _vars.threat_map = np.zeros((config.size, config.size))
     for ship in board.ships.values():
         if ship.player_id != board.current_player_id:
-            internals.threat_map[ship.position] = -10000
+            _vars.threat_map[ship.position.norm] = -5000
+    _vars.threat_map = gaussian_filter(_vars.threat_map, sigma=1.2, mode='wrap')
 
+    _vars.reward_map = _vars.halite_map * 3 + _vars.threat_map
 
     # Set actions for each ship
     for ship in me.ships:
