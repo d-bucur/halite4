@@ -1,8 +1,12 @@
-import abc
+from typing import Optional, Dict, List
 
-from kaggle_environments.envs.halite.helpers import *
 import numpy as np
+from kaggle_environments.envs.halite.helpers import Point, Configuration, Board, ShipAction, Ship, Observation, \
+    ShipyardAction
 from scipy.ndimage import gaussian_filter
+
+from coordinates import SimplePoint
+from orders import BuildShipyardOrder
 
 
 class AttributeDict(dict):
@@ -10,62 +14,9 @@ class AttributeDict(dict):
     __setattr__ = dict.__setitem__
 
 
-'''
-Coordinate system
-  0      y
-    +----->
-    |
-  x |
-    v
-'''
-SimplePoint = Tuple[int, int]  # TODO subclass from Point
-
-
 _vars = AttributeDict()  # TODO proper types
 _vars.orders = {}
 saved_config: Optional[Configuration] = None
-
-
-class ShipOrder:
-    @abc.abstractmethod
-    def execute(self, ship: Ship):
-        ...
-
-
-class BuildShipyardOrder(ShipOrder):
-    def __init__(self, target: SimplePoint):
-        self.target = target
-
-    def execute(self, ship: Ship):
-        ship_pos = ship.position.norm
-        if ship_pos == self.target:
-            return ShipAction.CONVERT
-        else:
-            return path_to_next(ship_pos, self.target)
-
-    def is_done(self, ship: Ship):
-        ship_pos = ship.position.norm
-        return ship_pos == self.target and ship.cell.shipyard
-
-    def __repr__(self) -> str:
-        return f"Build shipyard at {self.target}"
-
-
-def path_to_next(start: SimplePoint, target: SimplePoint) -> ShipAction:
-    # TODO wraparound map
-    tx, ty = target
-    sx, sy = start
-    dx = tx - sx
-    dy = ty - sy
-    # TODO move through diagonal or pathfind through heatmap
-    if dx < 0:
-        return ShipAction.NORTH
-    elif dx > 0:
-        return ShipAction.SOUTH
-    elif dy < 0:
-        return ShipAction.WEST
-    else:
-        return ShipAction.EAST
 
 
 def distance(p1: SimplePoint, p2: SimplePoint) -> int:

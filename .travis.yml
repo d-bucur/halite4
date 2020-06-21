@@ -25,7 +25,9 @@ jobs:
     - stage: release
       before_script:
         - pip install kaggle
+        - pip install stickytape
         - export KAGGLE_USERNAME=${KAGGLE_USERNAME}
         - export KAGGLE_KEY=${KAGGLE_KEY}
       script:
-        - kaggle competitions submit -c halite -f submission.py -m "${TRAVIS_TAG}"
+        - stickytape submission.py > submission_standalone.py
+        - kaggle competitions submit -c halite -f submission_standalone.py -m "${TRAVIS_TAG}"
