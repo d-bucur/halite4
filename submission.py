@@ -89,10 +89,7 @@ def agent(obs, config):
             _vars.orders[first_ship.id] = BuildShipyardOrder(target)
 
     build_ship_actions(me.ships, board.ships)
-
-    # Set actions for each shipyard
-    for shipyard in me.shipyards:
-        shipyard.next_action = None
+    build_shipyard_actions(board)
 
     return me.next_actions
 
@@ -131,7 +128,18 @@ def build_ship_actions(ships: List[Ship], ships_dict: Dict[str, Ship]) -> None:
         if ship_id not in ships_dict or _vars.orders[ship_id].is_done(ships_dict[ship_id]):
             del _vars.orders[ship_id]
     for ship in ships:
-        ship.next_action = _vars.orders[ship.id].execute(ship)
+        if ship.id in _vars.orders:
+            ship.next_action = _vars.orders[ship.id].execute(ship)
+        else:
+            ship.next_action = ShipAction.EAST
+
+
+def build_shipyard_actions(board: Board) -> None:
+    affordable_ships = board.current_player.halite // saved_config.spawn_cost
+    for shipyard in board.current_player.shipyards:
+        if affordable_ships > 0:
+            shipyard.next_action = ShipyardAction.SPAWN
+            affordable_ships -= 1
 
 
 def internals():
