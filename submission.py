@@ -1,6 +1,7 @@
 from kaggle_environments.envs.halite.helpers import Point, Board
 
 from src.commander import Commander
+from src.coordinates import from_point
 
 _commander = Commander()
 
@@ -11,10 +12,8 @@ def commander():
 
 
 def agent(obs, config):
-    global _vars
-    global saved_config
     # add method to convert coordinate system back to topleft 0,0
-    Point.norm = property(lambda self: (config.size - 1 - self.y, self.x))
+    Point.norm = property(lambda self: from_point(self, config.size))
 
     board = Board(obs, config)
     _commander.update(board, obs)

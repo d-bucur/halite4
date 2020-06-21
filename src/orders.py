@@ -2,10 +2,10 @@ import abc
 
 from kaggle_environments.envs.halite.helpers import ShipAction, Ship
 
-from src.coordinates import SimplePoint
+from src.coordinates import PointAlt
 
 
-def path_to_next(start: SimplePoint, target: SimplePoint) -> ShipAction:
+def path_to_next(start: PointAlt, target: PointAlt) -> ShipAction:
     # TODO wraparound map
     tx, ty = target
     sx, sy = start
@@ -33,7 +33,7 @@ class ShipOrder:
 
 
 class BuildShipyardOrder(ShipOrder):
-    def __init__(self, target: SimplePoint):
+    def __init__(self, target: PointAlt):
         self.target = target
 
     def execute(self, ship: Ship):
