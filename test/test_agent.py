@@ -1,11 +1,9 @@
-from kaggle_environments import make, evaluate
-from kaggle_environments.envs.halite.halite import random_agent
-
-from submission import agent
+import pytest
+from kaggle_environments import make
 
 
+@pytest.mark.skip("does not check for bot internal errors")
 def test_agent_completes():
-    # TODO does not check for bot internal errors
-    env = make("halite", configuration={"episodeSteps": 100})
-    env.run([agent, random_agent])
+    env = make("halite", configuration={"episodeSteps": 400}, debug=True)
+    env.run(["submission.py", "submission.py", "submission.py", "submission.py"])
     assert env.done
