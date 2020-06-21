@@ -1,75 +1,13 @@
-from typing import Optional, Dict, List
+from kaggle_environments.envs.halite.helpers import Point, Board
 
-import numpy as np
-from kaggle_environments.envs.halite.helpers import Point, Configuration, Board, ShipAction, Ship, Observation, \
-    ShipyardAction
-from scipy.ndimage import gaussian_filter
+from src.commander import Commander
 
-from coordinates import SimplePoint
-from orders import BuildShipyardOrder
+_commander = Commander()
 
 
-class AttributeDict(dict):
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
-
-
-_vars = AttributeDict()  # TODO proper types
-_vars.orders = {}
-saved_config: Optional[Configuration] = None
-
-
-def distance(p1: SimplePoint, p2: SimplePoint) -> int:
-    ax, ay = p1
-    bx, by = p2
-    return abs(bx-ax) + abs(by-ay)
-
-
-def calc_highest_in_range(arr: np.ndarray, position: SimplePoint, max_distance: int) -> SimplePoint:
-    pos_max = None
-    val_max = float('-inf')
-    for idx, val in np.ndenumerate(arr):
-        if distance(position, idx) < max_distance:
-            if val_max is None or val_max < val:
-                pos_max = idx
-                val_max = val
-    return pos_max
-
-
-def calc_maps(board, config, obs) -> None:
-    global _vars
-    _vars.halite_map = np.array(obs.halite).reshape((config.size, config.size))
-    _vars.halite_map = gaussian_filter(_vars.halite_map, sigma=1, mode='wrap')
-    _vars.threat_map = np.zeros((config.size, config.size))
-    for ship in board.ships.values():
-        if ship.player_id != board.current_player_id:
-            _vars.threat_map[ship.position.norm] = -5000
-    _vars.threat_map = gaussian_filter(_vars.threat_map, sigma=1.2, mode='wrap')
-    _vars.reward_map = _vars.halite_map * 3 + _vars.threat_map
-
-
-def build_ship_actions(ships: List[Ship], ships_dict: Dict[str, Ship]) -> None:
-    for ship_id in list(_vars.orders.keys()):
-        if ship_id not in ships_dict or _vars.orders[ship_id].is_done(ships_dict[ship_id]):
-            del _vars.orders[ship_id]
-    for ship in ships:
-        if ship.id in _vars.orders:
-            ship.next_action = _vars.orders[ship.id].execute(ship)
-        else:
-            ship.next_action = ShipAction.EAST
-
-
-def build_shipyard_actions(board: Board) -> None:
-    affordable_ships = board.current_player.halite // saved_config.spawn_cost
-    for shipyard in board.current_player.shipyards:
-        if affordable_ships > 0:
-            shipyard.next_action = ShipyardAction.SPAWN
-            affordable_ships -= 1
-
-
-def internals():
+def commander():
     # helper method to expose data to notebook reliably with autoreload
-    return _vars
+    return _commander
 
 
 def agent(obs, config):
@@ -79,20 +17,5 @@ def agent(obs, config):
     Point.norm = property(lambda self: (config.size - 1 - self.y, self.x))
 
     board = Board(obs, config)
-    obs = Observation(obs)
-    if not saved_config:
-        saved_config = Configuration(config)
-    me = board.current_player
-
-    calc_maps(board, config, obs)
-
-    if len(me.shipyards) == 0:
-        first_ship = me.ships[0]
-        target = calc_highest_in_range(_vars.reward_map, first_ship.position.norm, 4)
-        if first_ship.id not in _vars.orders:
-            _vars.orders[first_ship.id] = BuildShipyardOrder(target)
-
-    build_ship_actions(me.ships, board.ships)
-    build_shipyard_actions(board)
-
-    return me.next_actions
+    _commander.update(board, obs)
+    return _commander.get_next_actions()

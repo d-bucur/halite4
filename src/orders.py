@@ -1,7 +1,8 @@
-from kaggle_environments.envs.halite.helpers import ShipAction, Ship
 import abc
 
-from coordinates import SimplePoint
+from kaggle_environments.envs.halite.helpers import ShipAction, Ship
+
+from src.coordinates import SimplePoint
 
 
 def path_to_next(start: SimplePoint, target: SimplePoint) -> ShipAction:
@@ -24,6 +25,10 @@ def path_to_next(start: SimplePoint, target: SimplePoint) -> ShipAction:
 class ShipOrder:
     @abc.abstractmethod
     def execute(self, ship: Ship):
+        ...
+
+    @abc.abstractmethod
+    def is_done(self, ship: Ship):
         ...
 
 
