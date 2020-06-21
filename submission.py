@@ -68,32 +68,6 @@ def path_to_next(start: SimplePoint, target: SimplePoint) -> ShipAction:
         return ShipAction.EAST
 
 
-def agent(obs, config):
-    global _vars
-    global saved_config
-    # add method to convert coordinate system back to topleft 0,0
-    Point.norm = property(lambda self: (config.size - 1 - self.y, self.x))
-
-    board = Board(obs, config)
-    obs = Observation(obs)
-    if not saved_config:
-        saved_config = Configuration(config)
-    me = board.current_player
-
-    calc_maps(board, config, obs)
-
-    if len(me.shipyards) == 0:
-        first_ship = me.ships[0]
-        target = calc_highest_in_range(_vars.reward_map, first_ship.position.norm, 4)
-        if first_ship.id not in _vars.orders:
-            _vars.orders[first_ship.id] = BuildShipyardOrder(target)
-
-    build_ship_actions(me.ships, board.ships)
-    build_shipyard_actions(board)
-
-    return me.next_actions
-
-
 def distance(p1: SimplePoint, p2: SimplePoint) -> int:
     ax, ay = p1
     bx, by = p2
@@ -145,3 +119,29 @@ def build_shipyard_actions(board: Board) -> None:
 def internals():
     # helper method to expose data to notebook reliably with autoreload
     return _vars
+
+
+def agent(obs, config):
+    global _vars
+    global saved_config
+    # add method to convert coordinate system back to topleft 0,0
+    Point.norm = property(lambda self: (config.size - 1 - self.y, self.x))
+
+    board = Board(obs, config)
+    obs = Observation(obs)
+    if not saved_config:
+        saved_config = Configuration(config)
+    me = board.current_player
+
+    calc_maps(board, config, obs)
+
+    if len(me.shipyards) == 0:
+        first_ship = me.ships[0]
+        target = calc_highest_in_range(_vars.reward_map, first_ship.position.norm, 4)
+        if first_ship.id not in _vars.orders:
+            _vars.orders[first_ship.id] = BuildShipyardOrder(target)
+
+    build_ship_actions(me.ships, board.ships)
+    build_shipyard_actions(board)
+
+    return me.next_actions
