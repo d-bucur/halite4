@@ -1,7 +1,8 @@
-from typing import List, Dict
+from collections import defaultdict
+from typing import List, Dict, Set
 
 import numpy as np
-from kaggle_environments.envs.halite.helpers import Board, ShipyardAction
+from kaggle_environments.envs.halite.helpers import Board, ShipyardAction, Ship
 from scipy.ndimage import gaussian_filter
 
 from src.helpers import calc_highest_in_range
@@ -12,58 +13,86 @@ class Commander:
     def __init__(self):
         self.board: Board = None
         self.halite_map: np.ndarray = None
-        self.halite_map_blurred: np.ndarray = None
+        self.expansion_map: np.ndarray = None
         self.threat_map: np.ndarray = None
         self.reward_map: np.ndarray = None
         self.objectives_map: np.ndarray = None
         self.orders: Dict[str, ShipOrder] = {}
+        self.harvesters_x_base: Dict[str, Set[str]] = defaultdict(lambda: set())
         self.halite: List = None
-        self.need_shipyard: int = 1
+        self.need_shipyard: int = 0
     
     def update(self, board: Board, raw_observation):
         self.board = board
         self.halite = raw_observation.halite
         
     def get_next_actions(self):
-        self.clear_done_orders()
+        self.clear_state()
         self.calc_maps()
-        me = self.board.current_player
 
-        ships_without_orders = [ship for ship in me.ships if ship.id not in self.orders]
+        ships_without_orders = [ship for ship in self.board.current_player.ships if ship.id not in self.orders]
 
-        while self.need_shipyard > 0:
-            ship = ships_without_orders.pop()
-            target = calc_highest_in_range(self.reward_map, ship.position.norm, 4, 1)[0]
-            self.orders[ship.id] = BuildShipyardOrder(target)
-            self.need_shipyard -= 1
-
-        self.assign_harvesters(ships_without_orders)
+        free_bases = self.expansion_phase(ships_without_orders)
+        self.assign_harvesters(ships_without_orders, free_bases)
 
         self.build_ship_actions()
         self.build_shipyard_actions()
         
         return self.board.current_player.next_actions
 
+    def expansion_phase(self, ships_without_orders: List[Ship]) -> List[str]:
+        HARVESTERS_PER_BASE = 4
+        free_bases = []
+        for base in self.board.current_player.shipyards:
+            ships = self.harvesters_x_base[base.id]
+            if len(ships) < HARVESTERS_PER_BASE:
+                free_bases.append(base.id)
+
+        has_enough_halite = self.board.current_player.halite > self.board.configuration.convert_cost
+
+        if has_enough_halite:
+            if len(free_bases) == 0:
+                if all(type(o) != BuildShipyardOrder for o in self.orders.values()):
+                    self.need_shipyard += 1
+
+            while self.need_shipyard > 0 and ships_without_orders:
+                ship = ships_without_orders.pop()
+                target = calc_highest_in_range(self.expansion_map, ship.position.norm, 5, 1)[0]
+                self.orders[ship.id] = BuildShipyardOrder(target, self.board)
+                self.need_shipyard -= 1
+
+        return free_bases
+
     def build_ship_actions(self) -> None:
         for ship in self.board.current_player.ships:
             if ship.id in self.orders:
                 ship.next_action = self.orders[ship.id].execute(ship)
 
-    def clear_done_orders(self):
+    def clear_state(self):
+        # remove done orders or from invalid ships
         for ship_id in list(self.orders.keys()):
             if ship_id not in self.board.ships or self.orders[ship_id].is_done(self.board.ships[ship_id]):
                 del self.orders[ship_id]
+        # purge harvesters_x_base or obsolete keys
+        for base_id, ships in self.harvesters_x_base.items():
+            if base_id not in self.board.shipyards:
+                del self.harvesters_x_base[base_id]
+            self.harvesters_x_base[base_id] = set(s for s in ships if s in self.board.ships)
 
     def build_shipyard_actions(self) -> None:
         affordable_ships = self.board.current_player.halite // self.board.configuration.spawn_cost
         for shipyard in self.board.current_player.shipyards:
-            if affordable_ships > 0:
+            if affordable_ships > 0 and shipyard.cell.ship is None:
                 shipyard.next_action = ShipyardAction.SPAWN
                 affordable_ships -= 1
 
     def calc_maps(self) -> None:
         self.halite_map = np.array(self.halite).reshape(self._map_size())
-        self.halite_map_blurred = gaussian_filter(self.halite_map, sigma=1, mode='wrap')
+
+        self.expansion_map = np.copy(self.halite_map)
+        for base in self.board.shipyards.values():
+            self.expansion_map[base.position.norm] = -5000
+        self.expansion_map = gaussian_filter(self.expansion_map, sigma=3, mode='wrap')
 
         self.threat_map = np.zeros(self._map_size())
         for ship in self.board.ships.values():
@@ -77,16 +106,17 @@ class Commander:
             self.objectives_map[ship_target] = -1000
         self.objectives_map = gaussian_filter(self.objectives_map, sigma=1, mode='wrap')
 
-        self.reward_map = 3 * self.halite_map_blurred + self.threat_map + 3 * self.objectives_map
+        self.reward_map = self.halite_map + self.threat_map + 3 * self.objectives_map
 
     def _map_size(self):
         return self.board.configuration.size, self.board.configuration.size
 
-    def assign_harvesters(self, ships):
-        if not ships or not self.board.current_player.shipyards:
+    def assign_harvesters(self, ships: List[Ship], free_bases: List[str]):
+        if not ships or not free_bases or not self.board.current_player.shipyards:
             return
-        base = self.board.current_player.shipyards[0]
+        base = self.board.shipyards[free_bases[0]]  # TODO not using all bases
         base_pos = base.position.norm
         highest = calc_highest_in_range(self.reward_map, base_pos, 7, len(ships))
         for ship, target in zip(ships, highest):
+            self.harvesters_x_base[base.id].add(ship.id)
             self.orders[ship.id] = HarvestOrder(target, base_pos, self.board)
