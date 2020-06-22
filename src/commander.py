@@ -77,22 +77,27 @@ class Commander:
 
     def expansion_phase(self, ships_without_orders: List[Ship]) -> List[str]:
         HARVESTERS_PER_BASE = 4
+        EXPANSION_RAGE = 6
+        BASE_EXPANSION_CUTOFF = 150
+
         free_bases = []
         for base in self.board.current_player.shipyards:
             ships = self.harvesters_x_base[base.id]
             if len(ships) < HARVESTERS_PER_BASE:
                 free_bases.append(base.id)
+        if self._turns_remaining() < BASE_EXPANSION_CUTOFF:
+            return free_bases
 
-        has_enough_halite = self.board.current_player.halite > self.board.configuration.convert_cost
+        can_afford_expansion = self.board.current_player.halite > self.board.configuration.convert_cost
 
-        if has_enough_halite:
+        if can_afford_expansion:
             if len(free_bases) == 0:
                 if all(type(o) != BuildShipyardOrder for o in self.orders.values()):
                     self.need_shipyard += 1
 
             while self.need_shipyard > 0 and ships_without_orders:
                 ship = ships_without_orders.pop()
-                target = calc_highest_in_range(self.expansion_map, ship.position.norm, 5, 1)[0]
+                target = calc_highest_in_range(self.expansion_map, ship.position.norm, EXPANSION_RAGE, 1)[0]
                 self.orders[ship.id] = BuildShipyardOrder(target, self.board)
                 self.need_shipyard -= 1
 
@@ -101,9 +106,10 @@ class Commander:
     def assign_harvesters(self, ships: List[Ship], free_bases: List[str]):
         if not ships or not free_bases or not self.board.current_player.shipyards:
             return
+        HARVESTER_RANGE = 7
         base = self.board.shipyards[free_bases[0]]  # TODO not using all bases
         base_pos = base.position.norm
-        highest = calc_highest_in_range(self.reward_map, base_pos, 7, len(ships))
+        highest = calc_highest_in_range(self.reward_map, base_pos, HARVESTER_RANGE, len(ships))
         for ship, target in zip(ships, highest):
             self.harvesters_x_base[base.id].add(ship.id)
             self.orders[ship.id] = HarvestOrder(target, base_pos, self.board)
@@ -114,11 +120,17 @@ class Commander:
                 ship.next_action = self.orders[ship.id].execute(ship)
 
     def build_shipyard_actions(self) -> None:
+        NEW_SHIPS_CUTOFF = 100
+        if self._turns_remaining() < NEW_SHIPS_CUTOFF:
+            return
         affordable_ships = self.board.current_player.halite // self.board.configuration.spawn_cost
         for shipyard in self.board.current_player.shipyards:
             if affordable_ships > 0 and shipyard.cell.ship is None:
                 shipyard.next_action = ShipyardAction.SPAWN
                 affordable_ships -= 1
+
+    def _turns_remaining(self):
+        return self.board.configuration.episode_steps - self.board.step
 
     def _map_size(self):
         return self.board.configuration.size, self.board.configuration.size
