@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import List, Dict, Set
 
 import numpy as np
-from kaggle_environments.envs.halite.helpers import Board, ShipyardAction, Ship
+from kaggle_environments.envs.halite.helpers import Board, ShipyardAction, Ship, ShipAction
 from scipy.ndimage import gaussian_filter
 
 from src.helpers import calc_highest_in_range
@@ -39,6 +39,7 @@ class Commander:
 
         self.build_ship_actions()
         self.build_shipyard_actions()
+        self.collision_resolution()
         
         return self.board.current_player.next_actions
 
@@ -134,3 +135,16 @@ class Commander:
 
     def _map_size(self):
         return self.board.configuration.size, self.board.configuration.size
+
+    def collision_resolution(self):
+        # if will be dead next turn, stop, iterate a maximum amount of times
+        max_simulations = 10
+        has_collisions = True
+        while has_collisions and max_simulations > 0:
+            next_board = self.board.next()
+            max_simulations -= 1
+            for ship in self.board.current_player.ships:
+                if ship.id not in next_board.ships and ship.next_action != ShipAction.CONVERT and ship.cell.shipyard is None:
+                    ship.next_action = None
+                    break
+            has_collisions = False
