@@ -23,4 +23,4 @@ def calc_highest_in_range(arr: np.ndarray, position: PointAlt, max_distance: int
                 else:
                     heappush(highest, (val, idx))
                 lowest_val, _ = highest[0]
-    return [i[1] for i in highest]
+    return [PointAlt(i[1][0], i[1][1]) for i in highest]

@@ -1,6 +1,6 @@
-from typing import Tuple, Type
+from typing import Tuple, Type, Optional
 
-from kaggle_environments.envs.halite.helpers import Point
+from kaggle_environments.envs.halite.helpers import Point, ShipAction
 
 
 class PointAlt(tuple):
@@ -31,6 +31,21 @@ class PointAlt(tuple):
 
     def __add__(self, other) -> 'PointAlt':
         return PointAlt(self[0] + other[0], self[1] + other[1])
+
+    def action_from(self, start: 'PointAlt') -> Optional[ShipAction]:
+        # TODO check if wraparound works
+        if self[0] > start[0]:
+            return ShipAction.SOUTH
+        if self[0] < start[0]:
+            return ShipAction.NORTH
+        if self[1] > start[1]:
+            return ShipAction.EAST
+        if self[1] < start[1]:
+            return ShipAction.WEST
+        return None
+
+    def __repr__(self):
+        return f"P({self[0]}, {self[1]})"
 
 
 def from_point(p: Point, size: int) -> PointAlt:

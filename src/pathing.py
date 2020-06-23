@@ -53,11 +53,14 @@ class PathPlanner:
 
     def remove_path(self, path_id: str):
         if path_id not in self.plan_x_id:
-            logging.warning(f"Tried to remove path for {path_id} but it was not present")
+            # logging.warning(f"Tried to remove path for {path_id} but it was not present")
             return
         for time, point in self.plan_x_id[path_id].items():
             del self.planning[(point, time)]
         del self.plan_x_id[path_id]
+
+    def point_at(self, path_id: str, time: int) -> PointAlt:
+        return self.plan_x_id[path_id][time]
 
     def _neighbors(self, p: PointAlt):
         for n in self.neighbor_tiles:

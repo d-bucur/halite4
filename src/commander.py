@@ -11,11 +11,14 @@ from src.pathing import PathPlanner
 
 
 class Commander:
+    board: Board = None
+    config: Configuration = None
+
     def __init__(self, configuration: Configuration):
-        self.board: Board = None
         self.halite: List = None
         self.config = configuration
         self.path_planner = PathPlanner(configuration.size)
+        ShipOrder.planner = self.path_planner
 
         self.orders: Dict[str, ShipOrder] = {}
         self.harvesters_x_base: Dict[str, Set[str]] = defaultdict(lambda: set())
@@ -30,6 +33,7 @@ class Commander:
     def update(self, board: Board, raw_observation):
         self.board = board
         self.halite = raw_observation.halite
+        ShipOrder.board = board
         
     def get_next_actions(self):
         self.clear_state()
@@ -102,7 +106,7 @@ class Commander:
             while self.need_shipyard > 0 and ships_without_orders:
                 ship = ships_without_orders.pop()
                 target = calc_highest_in_range(self.expansion_map, ship.position.norm, EXPANSION_RAGE, 1)[0]
-                self.orders[ship.id] = BuildShipyardOrder(target, self.board)
+                self.orders[ship.id] = BuildShipyardOrder(ship, target)
                 self.need_shipyard -= 1
 
         return free_bases
@@ -116,7 +120,7 @@ class Commander:
         highest = calc_highest_in_range(self.reward_map, base_pos, HARVESTER_RANGE, len(ships))
         for ship, target in zip(ships, highest):
             self.harvesters_x_base[base.id].add(ship.id)
-            self.orders[ship.id] = HarvestOrder(target, base_pos, self.board)
+            self.orders[ship.id] = HarvestOrder(ship, target, base_pos)
 
     def build_ship_actions(self) -> None:
         for ship in self.board.current_player.ships:
