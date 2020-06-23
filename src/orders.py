@@ -5,27 +5,7 @@ from typing import Optional
 from kaggle_environments.envs.halite.helpers import ShipAction, Ship, Board
 
 from src.coordinates import PointAlt
-
-
-def path_to_next(start: PointAlt, target: PointAlt) -> Optional[ShipAction]:
-    # TODO wraparound map
-    tx, ty = target
-    sx, sy = start
-    dx = tx - sx
-    dy = ty - sy
-    if dx == 0 and dy == 0:
-        return None
-    # TODO pathfind through heatmap
-    possible_actions = []
-    if dx < 0:
-        possible_actions.append(ShipAction.NORTH)
-    elif dx > 0:
-        possible_actions.append(ShipAction.SOUTH)
-    if dy < 0:
-        possible_actions.append(ShipAction.WEST)
-    elif dy > 0:
-        possible_actions.append(ShipAction.EAST)
-    return random.choice(possible_actions)
+from src.pathing import PathPlanner
 
 
 class ShipOrder:
@@ -44,9 +24,12 @@ class ShipOrder:
 
 
 class BuildShipyardOrder(ShipOrder):
-    def __init__(self, target: PointAlt, board: Board):
+    def __init__(self, ship: Ship, target: PointAlt, board: Board, planner: PathPlanner):
+        self.ship = ship
         self.target = target
         self.board = board
+        self.planner = planner
+        planner.reserve_path(ship.position.norm, target, self.board.step, ship.id)
 
     def execute(self, ship: Ship) -> Optional[ShipAction]:
         ship_pos = ship.position.norm
@@ -57,6 +40,7 @@ class BuildShipyardOrder(ShipOrder):
 
     def is_done(self, ship: Ship):
         ship_pos = ship.position.norm
+        # TODO save config in commander class variable
         missing_halite_for_base = self.board.current_player.halite < self.board.configuration.convert_cost
         return ship_pos == self.target and (ship.cell.shipyard or missing_halite_for_base)
 
