@@ -1,17 +1,37 @@
-from typing import Tuple
+from typing import Tuple, Type
 
 from kaggle_environments.envs.halite.helpers import Point
 
-'''
-Coordinate system
-  0      y
-    +----->
-    |
-  x |
-    v
-'''
-PointAlt = Tuple[int, int]
+
+class PointAlt(tuple):
+    # TODO copy all logic from Point, but keep separate class
+    """
+    Coordinate system
+      0      y
+        +----->
+        |
+      x |
+        v
+    """
+    def __new__(cls: Type['PointAlt'], x: int, y: int):
+        return super(PointAlt, cls).__new__(cls, tuple((x, y)))
+
+    def resize(self, size):
+        """ does not consider points that are > size*2 """
+        x, y = self[0], self[1]
+        if self[0] >= size:
+            x = self[0] - size
+        elif self[0] < 0:
+            x = self[0] + size
+        if self[1] >= size:
+            y = self[1] - size
+        elif self[1] < 0:
+            y = self[1] + size
+        return PointAlt(x, y)
+
+    def __add__(self, other) -> 'PointAlt':
+        return PointAlt(self[0] + other[0], self[1] + other[1])
 
 
 def from_point(p: Point, size: int) -> PointAlt:
-    return size - 1 - p.y, p.x
+    return PointAlt(size - 1 - p.y, p.x)

@@ -8,11 +8,11 @@ commander = None
 
 def agent(obs, config):
     global commander
+    board = Board(obs, config)
     if commander is None:
-        commander = Commander()
+        commander = Commander(board.configuration)
     # add method to convert coordinate system back to topleft 0,0
     Point.norm = property(lambda self: from_point(self, config.size))
 
-    board = Board(obs, config)
     commander.update(board, obs)
     return commander.get_next_actions()

@@ -2,17 +2,20 @@ from collections import defaultdict
 from typing import List, Dict, Set
 
 import numpy as np
-from kaggle_environments.envs.halite.helpers import Board, ShipyardAction, Ship, ShipAction
+from kaggle_environments.envs.halite.helpers import Board, ShipyardAction, Ship, ShipAction, Configuration
 from scipy.ndimage import gaussian_filter
 
 from src.helpers import calc_highest_in_range
 from src.orders import ShipOrder, BuildShipyardOrder, HarvestOrder
+from src.pathing import PathPlanner
 
 
 class Commander:
-    def __init__(self):
+    def __init__(self, configuration: Configuration):
         self.board: Board = None
         self.halite: List = None
+        self.config = configuration
+        self.path_planner = PathPlanner(configuration.size)
 
         self.orders: Dict[str, ShipOrder] = {}
         self.harvesters_x_base: Dict[str, Set[str]] = defaultdict(lambda: set())
@@ -89,7 +92,7 @@ class Commander:
         if self._turns_remaining() < BASE_EXPANSION_CUTOFF:
             return free_bases
 
-        can_afford_expansion = self.board.current_player.halite > self.board.configuration.convert_cost
+        can_afford_expansion = self.board.current_player.halite > self.config.convert_cost
 
         if can_afford_expansion:
             if len(free_bases) == 0:
@@ -124,17 +127,17 @@ class Commander:
         NEW_SHIPS_CUTOFF = 100
         if self._turns_remaining() < NEW_SHIPS_CUTOFF:
             return
-        affordable_ships = self.board.current_player.halite // self.board.configuration.spawn_cost
+        affordable_ships = self.board.current_player.halite // self.config.spawn_cost
         for shipyard in self.board.current_player.shipyards:
             if affordable_ships > 0 and shipyard.cell.ship is None:
                 shipyard.next_action = ShipyardAction.SPAWN
                 affordable_ships -= 1
 
     def _turns_remaining(self):
-        return self.board.configuration.episode_steps - self.board.step
+        return self.config.episode_steps - self.board.step
 
     def _map_size(self):
-        return self.board.configuration.size, self.board.configuration.size
+        return self.config.size, self.config.size
 
     def collision_resolution(self):
         # if will be dead next turn, stop, iterate a maximum amount of times
