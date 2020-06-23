@@ -1,4 +1,5 @@
 import abc
+import random
 from typing import Optional
 
 from kaggle_environments.envs.halite.helpers import ShipAction, Ship, Board
@@ -6,24 +7,29 @@ from kaggle_environments.envs.halite.helpers import ShipAction, Ship, Board
 from src.coordinates import PointAlt
 
 
-def path_to_next(start: PointAlt, target: PointAlt) -> ShipAction:
+def path_to_next(start: PointAlt, target: PointAlt) -> Optional[ShipAction]:
     # TODO wraparound map
     tx, ty = target
     sx, sy = start
     dx = tx - sx
     dy = ty - sy
-    # TODO move through diagonal or pathfind through heatmap
+    if dx == 0 and dy == 0:
+        return None
+    # TODO pathfind through heatmap
+    possible_actions = []
     if dx < 0:
-        return ShipAction.NORTH
+        possible_actions.append(ShipAction.NORTH)
     elif dx > 0:
-        return ShipAction.SOUTH
-    elif dy < 0:
-        return ShipAction.WEST
-    else:
-        return ShipAction.EAST
+        possible_actions.append(ShipAction.SOUTH)
+    if dy < 0:
+        possible_actions.append(ShipAction.WEST)
+    elif dy > 0:
+        possible_actions.append(ShipAction.EAST)
+    return random.choice(possible_actions)
 
 
 class ShipOrder:
+    # TODO pass board and ship, use ship id as hash and save in sets
     @abc.abstractmethod
     def execute(self, ship: Ship) -> Optional[ShipAction]:
         ...

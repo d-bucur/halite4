@@ -1,4 +1,4 @@
-from heapq import heappop, heappushpop, heappush
+from heapq import heappushpop, heappush
 from typing import List
 
 import numpy as np
@@ -16,7 +16,7 @@ def calc_highest_in_range(arr: np.ndarray, position: PointAlt, max_distance: int
     highest = []
     lowest_val = float('-inf')
     for idx, val in np.ndenumerate(arr):
-        if distance(position, idx) < max_distance:
+        if distance(position, idx) < max_distance:  # TODO iterate efficiently
             if lowest_val < val:
                 if len(highest) == count:
                     heappushpop(highest, (val, idx))
