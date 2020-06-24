@@ -1,5 +1,4 @@
 from collections import deque, defaultdict
-import logging
 from typing import List, Dict, Tuple, Optional
 
 from src.coordinates import PointAlt

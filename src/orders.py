@@ -1,11 +1,10 @@
 import abc
 from typing import Optional
 
-from kaggle_environments.envs.halite.helpers import ShipAction, Ship, Board
+from kaggle_environments.envs.halite.helpers import ShipAction, Ship
 
 from src.coordinates import PointAlt
 from src.gamestate import GameState
-from src.pathing import PathPlanner
 
 
 class ShipOrder:
@@ -24,6 +23,7 @@ class ShipOrder:
     def _follow_next_point(self, ship):
         curr_point = GameState.planner.point_at(ship.id, GameState.board.step)
         if not curr_point or curr_point != ship.position.norm:
+            # path is outdated, recalculate
             # print(f"WARN: {ship.id} has deviated from path at turn {GameState.board.step}. Should be at {curr_point} but is at {ship.position.norm} instead")
             GameState.planner.remove_path(ship.id)
             GameState.planner.reserve_path(ship.position.norm, self.next_target(), GameState.board.step, ship.id)

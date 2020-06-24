@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import List, Dict, Set
 
 import numpy as np
-from kaggle_environments.envs.halite.helpers import Board, ShipyardAction, Ship, ShipAction, Configuration
+from kaggle_environments.envs.halite.helpers import ShipyardAction, Ship, ShipAction, Configuration
 from scipy.ndimage import gaussian_filter
 
 from src.gamestate import GameState

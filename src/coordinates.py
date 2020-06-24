@@ -1,4 +1,4 @@
-from typing import Tuple, Type, Optional
+from typing import Type, Optional
 
 from kaggle_environments.envs.halite.helpers import Point, ShipAction
 
