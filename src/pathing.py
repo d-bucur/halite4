@@ -1,6 +1,6 @@
 from collections import deque, defaultdict
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 from src.coordinates import PointAlt
 
@@ -15,6 +15,9 @@ class PathPlanner:
         self.planning: Dict[PlanningPoint, str] = {}
         self.plan_x_id: Dict[str, Dict[int, PointAlt]] = defaultdict(dict)
 
+    # TODO cleanup paths for missing ship ids
+    # TODO find efficient way to cleanup older times
+
     def reserve_path(self, start: PointAlt, target: PointAlt, start_time: int, path_id: str) -> List[PointAlt]:
         # TODO check if path_id already exists
         path = self.calc_path(start, target, start_time)
@@ -27,6 +30,7 @@ class PathPlanner:
         return path
 
     def calc_path(self, start: PointAlt, target: PointAlt, start_time: int) -> List[PointAlt]:
+        # TODO handle case when no path is found
         frontier = deque([(start, start_time)])
         came_from = {
             start: None
@@ -45,6 +49,8 @@ class PathPlanner:
         path = [target]
         current = target
         while current != start:
+            if current not in came_from:
+                return []  # TODO is this the case in which there is no path?
             path.append(came_from[current])
             current = came_from[current]
         path.reverse()
@@ -56,11 +62,13 @@ class PathPlanner:
             # logging.warning(f"Tried to remove path for {path_id} but it was not present")
             return
         for time, point in self.plan_x_id[path_id].items():
-            del self.planning[(point, time)]
+            k = (point, time)
+            if k in self.planning:  # TODO should always happen. sometimes doesn't. probably a bug
+                del self.planning[k]
         del self.plan_x_id[path_id]
 
-    def point_at(self, path_id: str, time: int) -> PointAlt:
-        return self.plan_x_id[path_id][time]
+    def point_at(self, path_id: str, time: int) -> Optional[PointAlt]:
+        return self.plan_x_id[path_id].get(time, None)  # TODO  bug: sometimes time is not inside. should always be
 
     def _neighbors(self, p: PointAlt):
         for n in self.neighbor_tiles:
