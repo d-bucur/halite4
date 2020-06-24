@@ -16,7 +16,7 @@ class PointAlt(tuple):
     def __new__(cls: Type['PointAlt'], x: int, y: int):
         return super(PointAlt, cls).__new__(cls, tuple((x, y)))
 
-    def resize(self, size):
+    def resize(self, size: int):
         """ does not consider points that are > size*2 """
         x, y = self[0], self[1]
         if self[0] >= size:
@@ -32,16 +32,20 @@ class PointAlt(tuple):
     def __add__(self, other) -> 'PointAlt':
         return PointAlt(self[0] + other[0], self[1] + other[1])
 
-    def action_from(self, start: 'PointAlt') -> Optional[ShipAction]:
-        # TODO check if wraparound works
-        if self[0] > start[0]:
-            return ShipAction.SOUTH
-        if self[0] < start[0]:
-            return ShipAction.NORTH
-        if self[1] > start[1]:
-            return ShipAction.EAST
-        if self[1] < start[1]:
-            return ShipAction.WEST
+    def action_from(self, start: 'PointAlt', size: int) -> Optional[ShipAction]:
+        dx = (self[1] - start[1]) % size
+        dy = (self[0] - start[0]) % size
+        middle = size / 2
+        if dy == 0:
+            if dx > middle:
+                return ShipAction.WEST
+            elif dx < middle:
+                return ShipAction.EAST
+        elif dx == 0:
+            if dy > middle:
+                return ShipAction.NORTH
+            elif dy < middle:
+                return ShipAction.SOUTH
         return None
 
     def __repr__(self):
