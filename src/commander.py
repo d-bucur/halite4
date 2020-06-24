@@ -86,7 +86,7 @@ class Commander:
     def expansion_phase(self, ships_without_orders: List[Ship]) -> List[str]:
         HARVESTERS_PER_BASE = 4
         EXPANSION_RAGE = 6
-        BASE_EXPANSION_CUTOFF = 150
+        BASE_EXPANSION_CUTOFF = 200
 
         free_bases = []
         for base in self.board.current_player.shipyards:
@@ -128,7 +128,7 @@ class Commander:
                 ship.next_action = self.orders[ship.id].execute(ship)
 
     def build_shipyard_actions(self) -> None:
-        NEW_SHIPS_CUTOFF = 100
+        NEW_SHIPS_CUTOFF = 150
         if self._turns_remaining() < NEW_SHIPS_CUTOFF:
             return
         affordable_ships = self.board.current_player.halite // self.config.spawn_cost
