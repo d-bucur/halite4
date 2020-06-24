@@ -53,6 +53,8 @@ class Commander:
                 del self.harvesters_x_base[base_id]
             self.harvesters_x_base[base_id] = set(s for s in ships if s in GameState.board.ships)
 
+        GameState.planner.cleanup_missing(set(GameState.board.current_player.ship_ids))
+
     def calc_maps(self) -> None:
         self.halite_map = np.array(GameState.halite).reshape(self._map_size())
 

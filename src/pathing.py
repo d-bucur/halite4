@@ -1,5 +1,5 @@
 from collections import deque, defaultdict
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Set
 
 from src.coordinates import PointAlt
 
@@ -14,7 +14,6 @@ class PathPlanner:
         self.planning: Dict[PlanningPoint, str] = {}
         self.plan_x_id: Dict[str, Dict[int, PointAlt]] = defaultdict(dict)
 
-    # TODO cleanup paths for missing ship ids
     # TODO find efficient way to cleanup older times
 
     def reserve_path(self, start: PointAlt, target: PointAlt, start_time: int, path_id: str) -> List[PointAlt]:
@@ -73,3 +72,8 @@ class PathPlanner:
         for n in self.neighbor_tiles:
             tentative = p + n
             yield tentative.resize(self.size)
+
+    def cleanup_missing(self, ids_to_keep: Set[str]):
+        to_remove = [s for s in self.plan_x_id.keys() if s not in ids_to_keep]
+        for path_id in to_remove:
+            self.remove_path(path_id)
