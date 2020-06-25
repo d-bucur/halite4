@@ -17,7 +17,9 @@ class PathPlanner:
     # TODO find efficient way to cleanup older times
 
     def reserve_path(self, start: PointAlt, target: PointAlt, start_time: int, path_id: str) -> List[PointAlt]:
-        # TODO check if path_id already exists
+        if path_id in self.plan_x_id:
+            self.remove_path(path_id)
+
         path = self.calc_path(start, target, start_time)
         time = start_time
         for point in path:
@@ -48,12 +50,20 @@ class PathPlanner:
         current = target
         while current != start:
             if current not in came_from:
+                print(f"Could not find path from {start} to {target}")
                 return []  # TODO is this the case in which there is no path?
             path.append(came_from[current])
             current = came_from[current]
         path.reverse()
         # TODO more efficient to just write times here
         return path
+
+    def reserve_standing(self, position: PointAlt, start_time: int, end_time: int, path_id: str):
+        for time in range(start_time, end_time+1):
+            plan_point = (position, time)
+            self.planning[plan_point] = path_id
+            self.plan_x_id[path_id][time] = position
+            # TODO if collides with a path invalidate it
 
     def remove_path(self, path_id: str):
         if path_id not in self.plan_x_id:

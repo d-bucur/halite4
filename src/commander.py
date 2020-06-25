@@ -14,7 +14,7 @@ from src.pathing import PathPlanner
 class Commander:
 
     def __init__(self, configuration: Configuration):
-        self.config = configuration
+        GameState.config = configuration
         GameState.planner = PathPlanner(configuration.size)
 
         self.orders: Dict[str, ShipOrder] = {}
@@ -36,6 +36,7 @@ class Commander:
         free_bases = self.expansion_phase(ships_without_orders)
         self.assign_harvesters(ships_without_orders, free_bases)
 
+        # TODO execute actions of ships that have nothing planned first
         self.build_ship_actions()
         self.build_shipyard_actions()
         self.collision_resolution()
@@ -90,7 +91,7 @@ class Commander:
         if self._turns_remaining() < BASE_EXPANSION_CUTOFF:
             return free_bases
 
-        can_afford_expansion = GameState.board.current_player.halite > self.config.convert_cost
+        can_afford_expansion = GameState.board.current_player.halite > GameState.config.convert_cost
 
         if can_afford_expansion:
             if len(free_bases) == 0:
@@ -115,6 +116,7 @@ class Commander:
         for ship, target in zip(ships, highest):
             self.harvesters_x_base[base.id].add(ship.id)
             self.orders[ship.id] = HarvestOrder(ship, target, base_pos)
+            ships.remove(ship)
 
     def build_ship_actions(self) -> None:
         for ship in GameState.board.current_player.ships:
@@ -125,17 +127,17 @@ class Commander:
         NEW_SHIPS_CUTOFF = 150
         if self._turns_remaining() < NEW_SHIPS_CUTOFF:
             return
-        affordable_ships = GameState.board.current_player.halite // self.config.spawn_cost
+        affordable_ships = GameState.board.current_player.halite // GameState.config.spawn_cost
         for shipyard in GameState.board.current_player.shipyards:
             if affordable_ships > 0 and shipyard.cell.ship is None:
                 shipyard.next_action = ShipyardAction.SPAWN
                 affordable_ships -= 1
 
     def _turns_remaining(self):
-        return self.config.episode_steps - GameState.board.step
+        return GameState.config.episode_steps - GameState.board.step
 
     def _map_size(self):
-        return self.config.size, self.config.size
+        return GameState.config.size, GameState.config.size
 
     def collision_resolution(self):
         # if will be dead next turn, stop, iterate a maximum amount of times

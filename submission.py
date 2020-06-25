@@ -3,6 +3,7 @@ from kaggle_environments.envs.halite.helpers import Point, Board
 from src.commander import Commander
 from src.coordinates import from_point
 from src.gamestate import GameState
+import src.monkeypatch_halite
 
 commander = None
 

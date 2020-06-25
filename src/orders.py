@@ -75,9 +75,15 @@ class HarvestOrder(ShipOrder):
             GameState.planner.remove_path(ship.id)
             if ship.cell.halite < 50 or ship.halite >= GameState.board.configuration.max_cell_halite:
                 self.go_harvest = False
+                GameState.planner.remove_path(ship.id)
                 GameState.planner.reserve_path(ship.position.norm, self.base_pos, GameState.board.step, ship.id)
             else:
-                # TODO plan staying still for a while
+                GameState.planner.reserve_standing(
+                    ship.position.norm,
+                    GameState.board.step,
+                    GameState.board.step + 3,
+                    ship.id
+                )
                 return None
 
         return self._follow_next_point(ship)
