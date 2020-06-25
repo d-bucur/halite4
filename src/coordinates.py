@@ -1,10 +1,9 @@
-from typing import Type, Optional
+from typing import Optional, Callable, Union, Tuple
 
 from kaggle_environments.envs.halite.helpers import Point, ShipAction
 
 
-class PointAlt(tuple):
-    # TODO copy all logic from Point, but keep separate class
+class PointAlt(Point):
     """
     Coordinate system
       0      y
@@ -13,11 +12,16 @@ class PointAlt(tuple):
       x |
         v
     """
-    def __new__(cls: Type['PointAlt'], x: int, y: int):
-        return super(PointAlt, cls).__new__(cls, tuple((x, y)))
+
+    def map(self, f: Callable[[int], int]) -> 'PointAlt':
+        return PointAlt(f(self[0]), f(self[1]))
+
+    def map2(self, other: Union[Tuple[int, int], 'Point'], f: Callable[[int, int], int]) -> 'PointAlt':
+        return PointAlt(f(self[0], other[0]), f(self[1], other[1]))
 
     def resize(self, size: int):
         """ does not consider points that are > size*2 """
+        # TODO rewrite with modulo
         x, y = self[0], self[1]
         if self[0] >= size:
             x = self[0] - size
@@ -28,9 +32,6 @@ class PointAlt(tuple):
         elif self[1] < 0:
             y = self[1] + size
         return PointAlt(x, y)
-
-    def __add__(self, other) -> 'PointAlt':
-        return PointAlt(self[0] + other[0], self[1] + other[1])
 
     def action_from(self, start: 'PointAlt', size: int) -> Optional[ShipAction]:
         dx = (self[1] - start[1]) % size
@@ -50,6 +51,10 @@ class PointAlt(tuple):
 
     def __repr__(self):
         return f"P({self[0]}, {self[1]})"
+
+    @property
+    def tuple(self) -> Tuple[int, int]:
+        return self.x, self.y
 
 
 def from_point(p: Point, size: int) -> PointAlt:
