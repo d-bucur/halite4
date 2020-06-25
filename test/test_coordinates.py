@@ -1,4 +1,4 @@
-from kaggle_environments.envs.halite.helpers import ShipAction
+from kaggle_environments.envs.halite.helpers import ShipAction, Point
 
 from src.coordinates import P
 
@@ -27,3 +27,18 @@ def test_action_wraparound():
     end = P(8, 0)
     assert end.action_from(start, size) == ShipAction.NORTH
     assert start.action_from(end, size) == ShipAction.SOUTH
+
+
+def test_pointalt():
+    p1 = P(1, 2)
+    p2 = P(1, 2)
+    p3 = Point(1, 2)
+    assert type(p1) == P
+    assert type(p1 + p2) == P
+    assert type(p1 + p3) == P
+    assert type(p1.tuple) == tuple
+
+
+def test_resize():
+    p1 = P(6, 6)
+    assert p1.resize(4) == P(2, 2)
