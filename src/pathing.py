@@ -1,13 +1,13 @@
 from collections import deque
 from typing import List
 
-from src.coordinates import PointAlt
+from src.coordinates import P
 
 
 class PathPlanner:
     neighbor_tiles = [(0, 1), (1, 0), (-1, 0), (0, -1)]
 
-    def calc_path(self, start: PointAlt, target: PointAlt, start_time: int) -> List[PointAlt]:
+    def calc_path(self, start: P, target: P, start_time: int) -> List[P]:
         # TODO handle case when no path is found
         frontier = deque([(start, start_time)])
         came_from = {
@@ -35,7 +35,7 @@ class PathPlanner:
         path.reverse()
         return path
 
-    def _neighbors(self, p: PointAlt):
+    def _neighbors(self, p: P):
         for n in self.neighbor_tiles:
             tentative = p + n
             yield tentative.resize(self.size)

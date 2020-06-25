@@ -3,7 +3,7 @@ from typing import Optional, Callable, Union, Tuple
 from kaggle_environments.envs.halite.helpers import Point, ShipAction
 
 
-class PointAlt(Point):
+class P(Point):
     """
     Coordinate system
       0      y
@@ -13,11 +13,11 @@ class PointAlt(Point):
         v
     """
 
-    def map(self, f: Callable[[int], int]) -> 'PointAlt':
-        return PointAlt(f(self[0]), f(self[1]))
+    def map(self, f: Callable[[int], int]) -> 'P':
+        return P(f(self[0]), f(self[1]))
 
-    def map2(self, other: Union[Tuple[int, int], 'Point'], f: Callable[[int, int], int]) -> 'PointAlt':
-        return PointAlt(f(self[0], other[0]), f(self[1], other[1]))
+    def map2(self, other: Union[Tuple[int, int], 'Point'], f: Callable[[int, int], int]) -> 'P':
+        return P(f(self[0], other[0]), f(self[1], other[1]))
 
     def resize(self, size: int):
         """ does not consider points that are > size*2 """
@@ -31,9 +31,9 @@ class PointAlt(Point):
             y = self[1] - size
         elif self[1] < 0:
             y = self[1] + size
-        return PointAlt(x, y)
+        return P(x, y)
 
-    def action_from(self, start: 'PointAlt', size: int) -> Optional[ShipAction]:
+    def action_from(self, start: 'P', size: int) -> Optional[ShipAction]:
         dx = (self[1] - start[1]) % size
         dy = (self[0] - start[0]) % size
         middle = size / 2
@@ -57,5 +57,5 @@ class PointAlt(Point):
         return self.x, self.y
 
 
-def from_point(p: Point, size: int) -> PointAlt:
-    return PointAlt(size - 1 - p.y, p.x)
+def from_point(p: Point, size: int) -> P:
+    return P(size - 1 - p.y, p.x)
