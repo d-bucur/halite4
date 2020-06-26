@@ -36,20 +36,20 @@ class Strategies:
         threat_map = np.zeros(GameState.map_size())
         for ship in GameState.board.ships.values():
             if ship.player_id != GameState.board.current_player_id:
-                threat_map[ship.position.norm] = -5000
+                threat_map[ship.position.norm] = -600
         threat_map = gaussian_filter(threat_map, sigma=1.2, mode='wrap')
         Strategies.avoid_enemies = AttractionMap(threat_map)
 
         friendly_ships_map = np.zeros(GameState.map_size())
         for ship in GameState.board.current_player.ships:
-            friendly_ships_map[ship.position.norm] = -5000
-        friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=0.7, mode='wrap')
+            friendly_ships_map[ship.position.norm] = -300
+        friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=0.8, mode='wrap')
         Strategies.avoid_friendlies = AttractionMap(friendly_ships_map)
 
         friendly_bases = np.zeros(GameState.map_size())
         for base in GameState.board.current_player.shipyards:
-            friendly_bases[base.position.norm] = -5000
-        friendly_bases = gaussian_filter(friendly_bases, sigma=1, mode='wrap')
+            friendly_bases[base.position.norm] = -400
+        friendly_bases = gaussian_filter(friendly_bases, sigma=0.8, mode='wrap')
         Strategies.friendly_bases = AttractionMap(friendly_bases)
 
 
@@ -68,10 +68,13 @@ class Commander:
     def _decide_priorities(self):
         if len(GameState.board.current_player.shipyards) == 0:
             Strategies.expand.priority = 100
-        Strategies.friendly_bases.priority = 10
+        Strategies.mine_halite.priority = 1
+        Strategies.friendly_bases.priority = 1
+        Strategies.avoid_friendlies.priority = 1
+        Strategies.avoid_enemies.priority = 1
 
     def _make_action(self, ship):
-        FORCE_CUTOFF = 6
+        FORCE_CUTOFF = 5
         total_force = P(0, 0)
         total_priorities = 0
         print(ship)
