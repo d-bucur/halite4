@@ -1,3 +1,4 @@
+import random
 from enum import IntEnum
 from typing import Optional
 
@@ -22,10 +23,19 @@ class AttractionMap:
         dy = self.flow[1][pos]
         v = self.array[pos]
         # escape local minimums
-        if dx == 0 and v < self.array[(x-1, y)] and v < self.array[(x+1, y)]:
-            dx = self.flow[0][(x-1, y)]
-        if dy == 0 and v < self.array[(x, y-1)] and v < self.array[(x, y+1)]:
-            dy = self.flow[0][(x, y-1)]
+        if dx == 0 and dy == 0 \
+                and v < self.array[(x-1, y)] and v < self.array[(x+1, y)] \
+                and v < self.array[(x, y - 1)] and v < self.array[(x, y + 1)]:
+            if random.randint(0, 1) == 0:
+                if random.randint(0, 1) == 0:
+                    dx = self.flow[0][(x-1, y)]
+                else:
+                    dx = self.flow[0][(x+1, y)]
+            else:
+                if random.randint(0, 1) == 0:
+                    dy = self.flow[1][(x, y-1)]
+                else:
+                    dy = self.flow[1][(x, y+1)]
         return P(dx, dy)
 
 
