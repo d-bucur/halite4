@@ -9,22 +9,24 @@ from src.coordinates import P
 FieldType = np.ndarray
 
 
-class FlowField:
-    def __init__(self, field: FieldType) -> None:
-        self.field = field
-
-    def at(self, pos: P):
-        return P(self.field[0][pos], self.field[1][pos])
-
-    def __repr__(self):
-        return str(self.field)
-
-
 class AttractionMap:
     def __init__(self, array: np.ndarray) -> None:
         self.array = array
-        self.flow = FlowField(make_field(self.array))
+        self.flow = make_field(self.array)
         self.priority = 1
+
+    def at(self, pos: P):
+        """ returns a force which is the direction of the maximum ascent """
+        x, y = pos
+        dx = self.flow[0][pos]
+        dy = self.flow[1][pos]
+        v = self.array[pos]
+        # escape local minimums
+        if dx == 0 and v < self.array[(x-1, y)] and v < self.array[(x+1, y)]:
+            dx = self.flow[0][(x-1, y)]
+        if dy == 0 and v < self.array[(x, y-1)] and v < self.array[(x, y+1)]:
+            dy = self.flow[0][(x, y-1)]
+        return P(dx, dy)
 
 
 def make_field(array: np.ndarray) -> FieldType:

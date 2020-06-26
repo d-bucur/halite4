@@ -76,7 +76,7 @@ class Commander:
         total_priorities = 0
         print(ship)
         for strategy in Strategies():
-            force = strategy.flow.at(ship.position.norm)
+            force = strategy.at(ship.position.norm)
             print(f"force {force} * {strategy.priority}")
             force *= strategy.priority
             total_priorities += strategy.priority
