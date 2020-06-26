@@ -8,3 +8,7 @@ class GameState:
     board: 'Board' = None
     config: 'Configuration' = None
     halite: typing.List[float] = None
+
+    @classmethod
+    def map_size(cls):
+        return cls.config.size, cls.config.size

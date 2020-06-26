@@ -19,6 +19,9 @@ class P(Point):
     def map2(self, other: Union[Tuple[int, int], 'Point'], f: Callable[[int, int], int]) -> 'P':
         return P(f(self[0], other[0]), f(self[1], other[1]))
 
+    def __truediv__(self, factor: int) -> 'Point':
+        return self.map(lambda x: x / factor)
+
     def resize(self, size: int):
         """ does not consider points that are > size*2 """
         # TODO rewrite with modulo
