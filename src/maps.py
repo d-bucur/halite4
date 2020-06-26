@@ -1,9 +1,52 @@
-from enum import IntEnum, auto
-from typing import NewType
+from enum import IntEnum
+from typing import Optional
 
 import numpy as np
+from kaggle_environments.envs.halite.helpers import ShipAction
 
 from src.coordinates import P
+
+FieldType = np.ndarray
+
+
+class FlowField:
+    def __init__(self, field: FieldType) -> None:
+        self.field = field
+
+    def at(self, pos: P):
+        return P(self.field[0][pos], self.field[1][pos])
+
+    def __repr__(self):
+        return str(self.field)
+
+
+class AttractionMap:
+    def __init__(self, array: np.ndarray) -> None:
+        self.array = array
+        self.flow = FlowField(make_field(self.array))
+        self.priority = 1
+
+
+def make_field(array: np.ndarray) -> FieldType:
+    return np.gradient(array)
+
+
+def action_from_force(f: P, cutoff: float = 0) -> Optional[ShipAction]:
+    x, y = f
+    abs_x = abs(x)
+    abs_y = abs(y)
+    if abs_x <= cutoff and abs_y <= cutoff:
+        return None
+    elif abs_x > abs_y:
+        if x > 0:
+            return ShipAction.SOUTH
+        else:
+            return ShipAction.NORTH
+    else:
+        if y > 0:
+            return ShipAction.EAST
+        else:
+            return ShipAction.WEST
 
 
 class FieldDirection(IntEnum):
@@ -14,23 +57,6 @@ class FieldDirection(IntEnum):
     RIGHT = 4
 
 
-FieldType = np.ndarray
-
-
-class FlowField:
-    def __init__(self, field: FieldType) -> None:
-        self.field = field
-
-    def __repr__(self):
-        return ""
-
-
-class AttractionMap:
-    def __init__(self, array: np.ndarray, cutoff: float = 0) -> None:
-        self.array = array
-        self.flow = make_field(self.array, cutoff)
-
-
 _neighbor_tiles = {
     P(0, 1): FieldDirection.RIGHT,
     P(1, 0): FieldDirection.DOWN,
@@ -39,24 +65,11 @@ _neighbor_tiles = {
 }
 
 
-def make_field(array: np.ndarray, cutoff) -> FieldType:
+def make_field_discrete(array: np.ndarray, cutoff) -> FieldType:
     gradient = np.gradient(array)
     field = gradient[0]
     for curr_pos, val in np.ndenumerate(array):
-        dx = abs(gradient[0][curr_pos])
-        dy = abs(gradient[1][curr_pos])
-        if dx <= cutoff and dy <= cutoff:
-            field[curr_pos] = FieldDirection.STAND
-        elif dx > dy:
-            if gradient[0][curr_pos] > 0:
-                field[curr_pos] = FieldDirection.DOWN
-            else:
-                field[curr_pos] = FieldDirection.UP
-        else:
-            if gradient[1][curr_pos] > 0:
-                field[curr_pos] = FieldDirection.RIGHT
-            else:
-                field[curr_pos] = FieldDirection.LEFT
+        field[curr_pos] = action_from_force(P(gradient[0][curr_pos], gradient[1][curr_pos]), cutoff)
     return field
 
 
