@@ -1,3 +1,4 @@
+from math import sqrt
 from typing import Optional, Callable, Union, Tuple
 
 from kaggle_environments.envs.halite.helpers import Point, ShipAction
@@ -25,6 +26,10 @@ class P(Point):
     @property
     def magnitude_squared(self) -> float:
         return self[0] ** 2 + self[1] ** 2
+
+    @property
+    def magnitude(self) -> float:
+        return sqrt(self[0] ** 2 + self[1] ** 2)
 
     def resize(self, size: int):
         """ does not consider points that are > size*2 """

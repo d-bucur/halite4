@@ -23,9 +23,13 @@ class AttractionMap:
         return P(dx, dy)
 
 
-def make_field(arr: np.ndarray): # -> FieldType:
+def make_field_gradient(arr: np.ndarray) -> FieldType:
+    return np.gradient(arr)
+
+
+def make_field(arr: np.ndarray):
     # x derivate
-    dx = np.zeros(arr.shape)
+    dx = np.empty(arr.shape)
     for y in range(0, arr.shape[1]):
         curr = arr[(-2, y)]
         next = arr[(-1, y)]
@@ -35,10 +39,8 @@ def make_field(arr: np.ndarray): # -> FieldType:
             next = arr[(x + 1, y)]
             if curr >= prev and curr >= next:
                 dx[(x, y)] = 0.0
-            elif next > prev:
-                dx[(x, y)] = next - curr
-            else:  # prev > next
-                dx[(x, y)] = curr - prev
+            else:
+                dx[(x, y)] = next - prev
 
     # y derivate
     dy = np.empty(arr.shape)
@@ -51,10 +53,8 @@ def make_field(arr: np.ndarray): # -> FieldType:
             next = arr[(x, y + 1)]
             if curr >= prev and curr >= next:
                 dy[(x, y)] = 0.0
-            elif next > prev:
-                dy[(x, y)] = next - curr
-            else:  # prev > next
-                dy[(x, y)] = curr - prev
+            else:
+                dy[(x, y)] = next - prev
     return [dx, dy]
 
 
