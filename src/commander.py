@@ -1,4 +1,5 @@
 from typing import Dict
+import logging
 
 import numpy as np
 from kaggle_environments.envs.halite.helpers import Configuration, ShipAction, ShipyardAction, Ship
@@ -91,12 +92,12 @@ class Commander:
         total_force = P(0, 0)
         total_priorities = 0
         ship_pos = ship.position.norm
-        print("--", ship)
-        print(f"halite on cell: {ship.cell.halite}")
+        logging.debug(f"--------- {ship}")
+        logging.debug(f"cell halite {ship.cell.halite}, ship halite {ship.halite}")
 
         def add_force(name: str, f: P, prio: float):
             nonlocal total_priorities, total_force
-            print(f"{name} {f} * {prio} = {f*prio}")
+            logging.debug(f"{name} {f} * {prio} = {f*prio}")
             total_priorities += prio
             total_force += f * prio
 
@@ -127,7 +128,7 @@ class Commander:
         #mining_others_reduction = (MINING_CUTOFF_OTHERS - ship.cell.halite) / MINING_CUTOFF_OTHERS
         #total_priorities *= mining_others_reduction
         cell_halite_modifier = ship.cell.halite / GameState.config.max_cell_halite * 3 + 1
-        print(f'current halite priority booster = {cell_halite_modifier}')
+        logging.debug(f'current halite priority booster = {cell_halite_modifier}')
         carrying_halite_modifier = min(0, (MAX_HALITE_X_SHIP - ship.halite) / MAX_HALITE_X_SHIP)  # TODO limit at 0
         mine_priority = Strategies.mine_halite.priority * carrying_halite_modifier * cell_halite_modifier
         add_force('mine', Strategies.mine_halite.at(ship_pos), mine_priority)
@@ -140,7 +141,7 @@ class Commander:
         direction = total_force / total_priorities
         add_force('TOTAL', direction, 1)
         ship.next_action = action_from_force(direction, FORCE_CUTOFF)
-        print(f'Action {ship.next_action}')
+        logging.debug(f'Action {ship.next_action}')
 
         if not ship.next_action and Strategies.expand.priority > 5 and self._can_build_base():
             ship.next_action = ShipAction.CONVERT
