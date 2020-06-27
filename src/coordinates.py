@@ -22,6 +22,10 @@ class P(Point):
     def __truediv__(self, factor: float) -> 'P':
         return self.map(lambda x: x / factor)
 
+    @property
+    def magnitude_squared(self) -> float:
+        return self[0] ** 2 + self[1] ** 2
+
     def resize(self, size: int):
         """ does not consider points that are > size*2 """
         # TODO rewrite with modulo

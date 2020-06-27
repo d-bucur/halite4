@@ -27,7 +27,8 @@ class AttractionMap:
         if escape_mins and dx <= MIN_CUTOFF and dy <= MIN_CUTOFF \
                 and v < self.array[(x-1, y)] and v < self.array[(x+1, y)] \
                 and v < self.array[(x, y - 1)] and v < self.array[(x, y + 1)]:
-            print(f"localmin at {pos}")
+            print(f"localmin")
+            # TODO check index ranges
             if random.randint(0, 1) == 0:
                 if random.randint(0, 1) == 0:
                     dx = self.flow[0][(x-1, y)]
