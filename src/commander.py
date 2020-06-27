@@ -29,13 +29,14 @@ class Strategies:
     @classmethod
     def update(cls):
         halite_map = np.array(GameState.halite).reshape(GameState.map_size())
-        halite_map = gaussian_filter(halite_map, sigma=0.1, mode='wrap') / 10
+        halite_map = gaussian_filter(halite_map, sigma=0.2, mode='wrap') / 5
         Strategies.mine_halite = AttractionMap(halite_map)
 
         expansion_map = np.copy(halite_map)
         for base in GameState.board.shipyards.values():
-            expansion_map[base.position.norm] = -500
-        expansion_map = gaussian_filter(expansion_map, sigma=2, mode='wrap') * 10
+            expansion_map[base.position.norm] = -400
+        expansion_map = gaussian_filter(expansion_map, sigma=2, mode='wrap') * 5
+        expansion_map -= halite_map
         Strategies.expand = AttractionMap(expansion_map)
 
         threat_map = np.zeros(GameState.map_size())
@@ -137,7 +138,7 @@ class Commander:
         add_force('mine', Strategies.mine_halite.at(ship_pos), mine_priority)
 
         # Return halite
-        RETURN_TRESHOLD = 300
+        RETURN_TRESHOLD = 500
         return_halite_priority = Strategies.return_halite.priority * (ship.halite / RETURN_TRESHOLD)
         add_force('return halite', Strategies.return_halite.at(ship_pos), return_halite_priority)
 
