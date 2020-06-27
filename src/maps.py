@@ -6,6 +6,7 @@ import numpy as np
 from kaggle_environments.envs.halite.helpers import ShipAction
 
 from src.coordinates import P
+from src.gamestate import GameState
 
 FieldType = np.ndarray
 
@@ -16,10 +17,30 @@ class AttractionMap:
         self.flow = make_field(self.array)
         self.priority = 1
 
-    def at(self, pos: P):
+    def at(self, pos: P, escape_mins = False):
         """ returns a force which is the direction of the maximum ascent """
+        MIN_CUTOFF = 0.15
+        x, y = pos
         dx = self.flow[0][pos]
         dy = self.flow[1][pos]
+        v = self.array[pos]
+        # escape local minimums
+        x_1 = (x + 1) % GameState.config.size
+        if escape_mins and dx <= MIN_CUTOFF and v < self.array[(x - 1, y)] and v < self.array[(x_1, y)]:
+            # TODO check index ranges
+            if random.randint(0, 1) == 0:
+                dx = self.flow[0][(x - 1, y)]
+            else:
+                dx = self.flow[0][(x_1, y)]
+
+        y_1 = (y + 1) % GameState.config.size
+        if escape_mins and dy <= MIN_CUTOFF and v < self.array[(x, y - 1)] and v < self.array[(x, y_1)]:
+            # TODO check index ranges
+            if random.randint(0, 1) == 0:
+                dy = self.flow[1][(x, y - 1)]
+            else:
+                dy = self.flow[1][(x, y_1)]
+
         return P(dx, dy)
 
 

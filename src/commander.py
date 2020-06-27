@@ -12,6 +12,7 @@ from src.maps import AttractionMap, action_from_force
 
 class Strategies:
     mine_halite: AttractionMap = None
+    mine_halite_longterm: AttractionMap = None
     return_halite: AttractionMap = None
     expand: AttractionMap = None
     avoid_enemies: AttractionMap = None
@@ -31,6 +32,10 @@ class Strategies:
         halite_map = np.array(GameState.halite).reshape(GameState.map_size())
         halite_map = gaussian_filter(halite_map, sigma=0.2, mode='wrap') / 5
         Strategies.mine_halite = AttractionMap(halite_map)
+
+        mine_halite_longterm = np.copy(halite_map) * 5
+        mine_halite_longterm = gaussian_filter(mine_halite_longterm, sigma=2, mode='wrap')
+        Strategies.mine_halite_longterm = AttractionMap(mine_halite_longterm)
 
         expansion_map = np.copy(halite_map)
         for base in GameState.board.shipyards.values():
@@ -79,15 +84,21 @@ class Commander:
         return GameState.board.current_player.next_actions
 
     def _decide_priorities(self):
+        SHIP_TO_BASE_RATIO = 5
         if len(GameState.board.current_player.shipyards) == 0:
             Strategies.expand.priority = 100
         else:
-            Strategies.expand.priority = 0
+            if len(GameState.board.current_player.ships) / len(GameState.board.current_player.shipyards) > SHIP_TO_BASE_RATIO:
+                Strategies.expand.priority = 5
+            else:
+                Strategies.expand.priority = 0
         Strategies.mine_halite.priority = 1
+        Strategies.mine_halite_longterm.priority = 1
         Strategies.friendly_bases.priority = 0.15
         Strategies.avoid_friendlies.priority = 1
         Strategies.avoid_enemies.priority = 1
-        Strategies.return_halite.priority = 1
+        if self._turns_remaining() < 50:
+            Strategies.return_halite.priority = 50
 
     def _make_action(self, ship):
         FORCE_CUTOFF = 5
@@ -103,6 +114,7 @@ class Commander:
             total_priorities += prio
             total_force += f * prio
 
+        # TODO these seem independent. Should extract to strategy types
         # Create new bases
         add_force('expand', Strategies.expand.at(ship_pos), Strategies.expand.priority)
 
@@ -116,10 +128,10 @@ class Commander:
         '''
 
         # Avoid colliding into friendlies
-        AVOID_FRIENDLIES_REDUCTION_FACTOR = 10
-        avoid_friendlies_force = self._calc_friendlies_map(ship).at(ship_pos) / AVOID_FRIENDLIES_REDUCTION_FACTOR
+        AVOID_FRIENDLIES_REDUCTION_FACTOR = 5
+        avoid_friendlies_force = self._calc_friendlies_map(ship).at(ship_pos, True) / AVOID_FRIENDLIES_REDUCTION_FACTOR
         avoid_friendlies_priority = Strategies.avoid_friendlies.priority
-        avoid_friendlies_priority *= avoid_friendlies_force.magnitude / 3
+        avoid_friendlies_priority *= min(3, avoid_friendlies_force.magnitude / 3)
         add_force(
             'avoid friendlies',
             avoid_friendlies_force,
@@ -128,14 +140,19 @@ class Commander:
 
         # Mine
         MAX_HALITE_X_SHIP = 500
-        #MINING_CUTOFF_OTHERS = 550
-        #mining_others_reduction = (MINING_CUTOFF_OTHERS - ship.cell.halite) / MINING_CUTOFF_OTHERS
-        #total_priorities *= mining_others_reduction
+        mine_force = Strategies.mine_halite.at(ship_pos) / 5
         cell_halite_modifier = ship.cell.halite / GameState.config.max_cell_halite * 3 + 1
-        logging.info(f'current halite priority booster = {cell_halite_modifier}')
+        # logging.info(f'current halite priority booster = {cell_halite_modifier}')
         carrying_halite_modifier = max(0, (MAX_HALITE_X_SHIP - ship.halite) / MAX_HALITE_X_SHIP)
         mine_priority = Strategies.mine_halite.priority * carrying_halite_modifier * cell_halite_modifier
-        add_force('mine', Strategies.mine_halite.at(ship_pos), mine_priority)
+        add_force('mine', mine_force, mine_priority)
+
+        add_force(
+            'mine longterm',
+            Strategies.mine_halite_longterm.at(ship_pos),
+            Strategies.mine_halite_longterm.priority * (500 - ship.cell.halite) / 500 * carrying_halite_modifier
+        )
+
 
         # Return halite
         RETURN_TRESHOLD = 500
@@ -145,15 +162,21 @@ class Commander:
         direction = total_force / total_priorities
         add_force('TOTAL', direction, 1)
         ship.next_action = action_from_force(direction, FORCE_CUTOFF)
+        MIN_HALITE_TO_STAND = 75
+        if not ship.next_action and ship.cell.halite < MIN_HALITE_TO_STAND:
+            ship.next_action = action_from_force(direction, 0)
+            logging.info("Avoided standing still")
         logging.info(f'Action {ship.next_action}')
 
-        if not ship.next_action and Strategies.expand.priority > 5 and self._can_build_base():
+        if not ship.next_action and Strategies.expand.priority >= 5 and self._can_build_base():
             ship.next_action = ShipAction.CONVERT
 
     def _build_ships(self):
+        next_board = GameState.board.next()
         for base in GameState.board.current_player.shipyards:
-            if self._can_build_ship():
-                base.next_action = ShipyardAction.SPAWN
+            if self._can_build_ship() and Strategies.expand.priority == 0:
+                if next_board.shipyards[base.id].cell.ship is None:
+                    base.next_action = ShipyardAction.SPAWN
 
     @staticmethod
     def _turns_remaining():
