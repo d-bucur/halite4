@@ -16,34 +16,46 @@ class AttractionMap:
         self.flow = make_field(self.array)
         self.priority = 1
 
-    def at(self, pos: P, escape_mins=True):
+    def at(self, pos: P):
         """ returns a force which is the direction of the maximum ascent """
-        MIN_CUTOFF = 0.15
-        x, y = pos
         dx = self.flow[0][pos]
         dy = self.flow[1][pos]
-        v = self.array[pos]
-        # escape local minimums
-        if escape_mins and dx <= MIN_CUTOFF and dy <= MIN_CUTOFF \
-                and v < self.array[(x-1, y)] and v < self.array[(x+1, y)] \
-                and v < self.array[(x, y - 1)] and v < self.array[(x, y + 1)]:
-            print(f"localmin")
-            # TODO check index ranges
-            if random.randint(0, 1) == 0:
-                if random.randint(0, 1) == 0:
-                    dx = self.flow[0][(x-1, y)]
-                else:
-                    dx = self.flow[0][(x+1, y)]
-            else:
-                if random.randint(0, 1) == 0:
-                    dy = self.flow[1][(x, y-1)]
-                else:
-                    dy = self.flow[1][(x, y+1)]
         return P(dx, dy)
 
 
-def make_field(array: np.ndarray) -> FieldType:
-    return np.gradient(array)
+def make_field(arr: np.ndarray): # -> FieldType:
+    # x derivate
+    dx = np.zeros(arr.shape)
+    for y in range(0, arr.shape[1]):
+        curr = arr[(-2, y)]
+        next = arr[(-1, y)]
+        for x in range(-1, arr.shape[0] - 1):
+            prev = curr
+            curr = next
+            next = arr[(x + 1, y)]
+            if curr >= prev and curr >= next:
+                dx[(x, y)] = 0.0
+            elif next > prev:
+                dx[(x, y)] = next - curr
+            else:  # prev > next
+                dx[(x, y)] = curr - prev
+
+    # y derivate
+    dy = np.empty(arr.shape)
+    for x in range(0, arr.shape[0]):
+        curr = arr[(x, -2)]
+        next = arr[(x, -1)]
+        for y in range(-1, arr.shape[1] - 1):
+            prev = curr
+            curr = next
+            next = arr[(x, y + 1)]
+            if curr >= prev and curr >= next:
+                dy[(x, y)] = 0.0
+            elif next > prev:
+                dy[(x, y)] = next - curr
+            else:  # prev > next
+                dy[(x, y)] = curr - prev
+    return [dx, dy]
 
 
 def action_from_force(f: P, cutoff: float = 0) -> Optional[ShipAction]:

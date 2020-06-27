@@ -1,5 +1,7 @@
+from typing import Dict
+
 import numpy as np
-from kaggle_environments.envs.halite.helpers import Configuration, ShipAction, ShipyardAction
+from kaggle_environments.envs.halite.helpers import Configuration, ShipAction, ShipyardAction, Ship
 from scipy.ndimage import gaussian_filter
 
 from src.coordinates import P
@@ -13,6 +15,7 @@ class Strategies:
     expand: AttractionMap = None
     avoid_enemies: AttractionMap = None
     avoid_friendlies: AttractionMap = None
+    avoid_friendlies_dict: Dict[str, AttractionMap] = {}
     friendly_bases: AttractionMap = None
 
     @classmethod
@@ -41,6 +44,7 @@ class Strategies:
         threat_map = gaussian_filter(threat_map, sigma=1.2, mode='wrap')
         Strategies.avoid_enemies = AttractionMap(threat_map)
 
+        # TODO not used
         friendly_ships_map = np.zeros(GameState.map_size())
         for ship in GameState.board.current_player.ships:
             friendly_ships_map[ship.position.norm] = -100
@@ -49,8 +53,8 @@ class Strategies:
 
         friendly_bases = np.zeros(GameState.map_size())
         for base in GameState.board.current_player.shipyards:
-            friendly_bases[base.position.norm] = -200
-        friendly_bases = gaussian_filter(friendly_bases, sigma=0.3, mode='wrap')
+            friendly_bases[base.position.norm] = -180
+        friendly_bases = gaussian_filter(friendly_bases, sigma=0.5, mode='wrap')
         Strategies.friendly_bases = AttractionMap(friendly_bases)
 
         return_halite = np.zeros(GameState.map_size())
@@ -108,7 +112,7 @@ class Commander:
 
         # Avoid colliding into friendlies
         AVOID_FRIENDLIES_REDUCTION_FACTOR = 100
-        avoid_friendlies_force = Strategies.avoid_friendlies.at(ship_pos, False)
+        avoid_friendlies_force = self._calc_friendlies_map(ship).at(ship_pos)
         avoid_friendlies_priority = Strategies.avoid_friendlies.priority
         avoid_friendlies_priority *= avoid_friendlies_force.magnitude_squared / AVOID_FRIENDLIES_REDUCTION_FACTOR
         add_force(
@@ -124,7 +128,7 @@ class Commander:
         #total_priorities *= mining_others_reduction
         cell_halite_modifier = ship.cell.halite / GameState.config.max_cell_halite * 3 + 1
         print(f'current halite priority booster = {cell_halite_modifier}')
-        carrying_halite_modifier = (MAX_HALITE_X_SHIP - ship.halite) / MAX_HALITE_X_SHIP  # TODO limit at 0
+        carrying_halite_modifier = min(0, (MAX_HALITE_X_SHIP - ship.halite) / MAX_HALITE_X_SHIP)  # TODO limit at 0
         mine_priority = Strategies.mine_halite.priority * carrying_halite_modifier * cell_halite_modifier
         add_force('mine', Strategies.mine_halite.at(ship_pos), mine_priority)
 
@@ -157,3 +161,13 @@ class Commander:
     @staticmethod
     def _can_build_ship():
         return GameState.board.current_player.halite >= GameState.config.spawn_cost
+
+    def _calc_friendlies_map(self, ship: Ship) -> AttractionMap:
+        friendly_ships_map = np.zeros(GameState.map_size())
+        for other_ship in GameState.board.current_player.ships:
+            if other_ship.id != ship.id:
+                friendly_ships_map[other_ship.position.norm] = -150
+        friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=0.5, mode='wrap')
+        friendlies_map = AttractionMap(friendly_ships_map)
+        Strategies.avoid_friendlies_dict[ship.id] = friendlies_map
+        return friendlies_map
