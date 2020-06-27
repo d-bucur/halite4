@@ -16,16 +16,18 @@ class AttractionMap:
         self.flow = make_field(self.array)
         self.priority = 1
 
-    def at(self, pos: P):
+    def at(self, pos: P, escape_mins=True):
         """ returns a force which is the direction of the maximum ascent """
+        MIN_CUTOFF = 0.15
         x, y = pos
         dx = self.flow[0][pos]
         dy = self.flow[1][pos]
         v = self.array[pos]
         # escape local minimums
-        if dx == 0 and dy == 0 \
+        if escape_mins and dx <= MIN_CUTOFF and dy <= MIN_CUTOFF \
                 and v < self.array[(x-1, y)] and v < self.array[(x+1, y)] \
                 and v < self.array[(x, y - 1)] and v < self.array[(x, y + 1)]:
+            print(f"localmin at {pos}")
             if random.randint(0, 1) == 0:
                 if random.randint(0, 1) == 0:
                     dx = self.flow[0][(x-1, y)]

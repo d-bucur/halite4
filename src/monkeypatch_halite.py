@@ -6,3 +6,4 @@ def ship_repr(self):
 
 
 Ship.__repr__ = ship_repr
+Point.__str__ = lambda self: f"({self.x:0.1f}, {self.y:0.1f})"
