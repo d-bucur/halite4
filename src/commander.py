@@ -1,11 +1,11 @@
-from typing import Dict
 import logging
+import random
+from typing import Dict
 
 import numpy as np
 from kaggle_environments.envs.halite.helpers import Configuration, ShipAction, ShipyardAction, Ship
 from scipy.ndimage import gaussian_filter
 
-from src.coordinates import P
 from src.gamestate import GameState
 from src.maps import AttractionMap, action_from_force, ForceCombination, ContributingForce
 from src.planner import Planner
@@ -22,20 +22,13 @@ class Strategies:
     friendly_bases: AttractionMap = None
 
     @classmethod
-    def __iter__(cls):
-        yield cls.expand
-        yield cls.mine_halite
-        yield cls.avoid_friendlies
-        yield cls.friendly_bases
-
-    @classmethod
     def update(cls):
         halite_map = np.array(GameState.halite).reshape(GameState.map_size())
-        halite_map = gaussian_filter(halite_map, sigma=0.2, mode='wrap') / 5
+        halite_map = gaussian_filter(halite_map, sigma=0.4, mode='wrap') / 5
         Strategies.mine_halite = AttractionMap(halite_map)
 
-        mine_halite_longterm = np.copy(halite_map) * 5
-        mine_halite_longterm = gaussian_filter(mine_halite_longterm, sigma=2, mode='wrap')
+        mine_halite_longterm = (np.copy(halite_map) - 5) * 5
+        mine_halite_longterm = gaussian_filter(mine_halite_longterm, sigma=1.7, mode='wrap')
         Strategies.mine_halite_longterm = AttractionMap(mine_halite_longterm)
 
         expansion_map = np.copy(halite_map)
@@ -45,13 +38,16 @@ class Strategies:
         expansion_map -= halite_map
         Strategies.expand = AttractionMap(expansion_map)
 
+        '''
         threat_map = np.zeros(GameState.map_size())
         for ship in GameState.board.ships.values():
             if ship.player_id != GameState.board.current_player_id:
                 threat_map[ship.position.norm] = -600
         threat_map = gaussian_filter(threat_map, sigma=1.2, mode='wrap')
         Strategies.avoid_enemies = AttractionMap(threat_map)
+        '''
 
+        '''
         # TODO not used
         friendly_ships_map = np.zeros(GameState.map_size())
         for ship in GameState.board.current_player.ships:
@@ -59,11 +55,13 @@ class Strategies:
         #friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=0.8, mode='wrap')
         Strategies.avoid_friendlies = AttractionMap(friendly_ships_map)
 
+        # TODO not used
         friendly_bases = np.zeros(GameState.map_size())
         for base in GameState.board.current_player.shipyards:
             friendly_bases[base.position.norm] = -180
         friendly_bases = gaussian_filter(friendly_bases, sigma=0.5, mode='wrap')
         Strategies.friendly_bases = AttractionMap(friendly_bases)
+        '''
 
         return_halite = np.zeros(GameState.map_size())
         for base in GameState.board.current_player.shipyards:
@@ -99,81 +97,61 @@ class Commander:
                 Strategies.expand.priority = 5
             else:
                 Strategies.expand.priority = 0
-        Strategies.mine_halite.priority = 1
-        Strategies.mine_halite_longterm.priority = 1
-        Strategies.friendly_bases.priority = 0.15
-        Strategies.avoid_friendlies.priority = 1
-        Strategies.avoid_enemies.priority = 1
         if self._turns_remaining() < 50:
             Strategies.return_halite.priority = 50
 
     def _make_action(self, ship):
-        FORCE_CUTOFF = 5
+        FORCE_CUTOFF = 1
         ship_pos = ship.position.norm
         logging.info(f"--------- {ship}")
         logging.info(f"cell halite {ship.cell.halite}, ship halite {ship.halite}")
         combination = ForceCombination()
 
-        # Create new bases
         expand = ContributingForce(
             'expand',
-            Strategies.expand.at(ship_pos),
+            Strategies.expand.flow_at(ship_pos),
             Strategies.expand.priority
         )
 
         '''
-        # Get away from friendly shipyards
-        # TODO only add if current action is none
-        friendly_base_priority = Strategies.friendly_bases.priority
-        #if ship.halite > 0:
-        #    friendly_base_priority = -friendly_base_priority
-        add_force('friendly base', Strategies.friendly_bases.at(ship_pos), friendly_base_priority)
-        '''
-
-        # Avoid colliding into friendlies
-        '''
-        AVOID_FRIENDLIES_REDUCTION_FACTOR = 5
-        avoid_friendlies_force = self._calc_friendlies_map(ship).at(ship_pos, True) / AVOID_FRIENDLIES_REDUCTION_FACTOR
-        avoid_friendlies_priority = Strategies.avoid_friendlies.priority
-        avoid_friendlies_priority *= min(3, avoid_friendlies_force.magnitude / 3)
-        add_force(
+        # Avoid colliding
+        avoid_clustering = ContributingForce(
             'avoid friendlies',
-            avoid_friendlies_force,
-            avoid_friendlies_priority
+            self._calc_friendlies_map(ship).flow_at(ship_pos),
+            Strategies.avoid_friendlies.priority
         )
         '''
 
-        # Mine
-        MAX_HALITE_X_SHIP = 500
-        mine_force = Strategies.mine_halite.at(ship_pos) / 5
-        cell_halite_modifier = ship.cell.halite / GameState.config.max_cell_halite * 3 + 1
-        carrying_halite_modifier = max(0, (MAX_HALITE_X_SHIP - ship.halite) / MAX_HALITE_X_SHIP)
-        mine_priority = Strategies.mine_halite.priority * carrying_halite_modifier * cell_halite_modifier
+        mine_priority = Strategies.mine_halite.priority
+        if ship.cell.halite > 250:
+            mine_priority *= 2
         mine = ContributingForce(
             'mine',
-            mine_force,
+            Strategies.mine_halite.flow_at(ship_pos),
             mine_priority
         )
 
         mine_longterm = ContributingForce(
             'mine longterm',
-            Strategies.mine_halite_longterm.at(ship_pos),
-            Strategies.mine_halite_longterm.priority * (500 - ship.cell.halite) / 500 * carrying_halite_modifier
+            Strategies.mine_halite_longterm.flow_at(ship_pos),
+            Strategies.mine_halite_longterm.priority
         )
 
-        # Return halite
-        RETURN_TRESHOLD = 500
-        return_halite_priority = Strategies.return_halite.priority * (ship.halite / RETURN_TRESHOLD)
+        RETURN_TRESHOLD = 350
         return_halite = ContributingForce(
             'return halite',
-            Strategies.return_halite.at(ship_pos),
-            return_halite_priority
+            Strategies.return_halite.flow_at(ship_pos),
+            Strategies.return_halite.priority
         )
 
-        combination.add(expand)
-        combination.add(mine)
-        combination.add(mine_longterm)
-        combination.add(return_halite)
+        if expand.weight > 0:
+            combination.add(expand)
+        if ship.cell.halite < 200 and Strategies.mine_halite_longterm.value_at(ship_pos) < 10:
+            combination.add(mine_longterm)
+        elif ship.halite > RETURN_TRESHOLD:
+            combination.add(return_halite)
+        else:
+            combination.add(mine)
         total = combination.total()
         logging.info(f"TOTAL            {total}")
         ship.next_action = action_from_force(total, FORCE_CUTOFF)
@@ -182,9 +160,14 @@ class Commander:
             ship.next_action = ShipAction.CONVERT
 
         MIN_HALITE_TO_STAND = 75
-        if not ship.next_action and ship.cell.halite < MIN_HALITE_TO_STAND:
-            ship.next_action = action_from_force(total, 0)
-            logging.info("Avoided standing still")
+        if ship.cell.halite < MIN_HALITE_TO_STAND:
+            if not ship.next_action:
+                logging.info("Moving to any flow direction")
+                ship.next_action = action_from_force(total, 0)
+            if not ship.next_action:
+                logging.info("Moving randomly")
+                ship.next_action = self._random_action()
+
         logging.info(f'Action {ship.next_action}')
         self.planner.reserve_action(ship, ship.next_action)
 
@@ -215,3 +198,6 @@ class Commander:
         friendlies_map = AttractionMap(friendly_ships_map)
         Strategies.avoid_friendlies_dict[ship.id] = friendlies_map
         return friendlies_map
+
+    def _random_action(self):
+        return random.choice((ShipAction.NORTH, ShipAction.EAST, ShipAction.SOUTH, ShipAction.WEST))

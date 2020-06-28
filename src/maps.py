@@ -18,7 +18,7 @@ class AttractionMap:
         self.flow = make_field(self.array)
         self.priority = 1
 
-    def at(self, pos: P, escape_mins = False):
+    def flow_at(self, pos: P, escape_mins = False):
         """ returns a force which is the direction of the maximum ascent """
         MIN_CUTOFF = 0.15
         x, y = pos
@@ -43,6 +43,9 @@ class AttractionMap:
                 dy = self.flow[1][(x, y_1)]
 
         return P(dx, dy)
+
+    def value_at(self, pos):
+        return self.array[pos]
 
 
 def make_field(arr: np.ndarray):
