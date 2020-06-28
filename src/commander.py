@@ -21,6 +21,7 @@ class Strategies:
     avoid_friendlies_dict: Dict[str, AttractionMap] = {}
     friendly_bases: AttractionMap = None
     attack_enemy_miners: AttractionMap = None
+    attack_enemy_bases: AttractionMap = None
 
     @classmethod
     def update(cls):
@@ -75,6 +76,17 @@ class Strategies:
             lambda x: max(0, x-10)
         )
         Strategies.attack_enemy_miners = AttractionMap(attack_enemy_miners)
+
+        attack_enemy_bases = np.empty(GameState.map_size())
+        visit_map(
+            attack_enemy_bases,
+            (s.position.norm
+             for s in GameState.board.shipyards.values()
+             if s.player_id != me),
+            100,
+            lambda x: max(0, x-10)
+        )
+        Strategies.attack_enemy_bases = AttractionMap(attack_enemy_bases)
 
         return_halite = np.empty(GameState.map_size())
         visit_map(
@@ -167,12 +179,23 @@ class Commander:
             Strategies.attack_enemy_miners.priority
         )
 
+        attack_enemy_bases = ContributingForce(
+            'attack enemy bases',
+            Strategies.attack_enemy_bases.flow_at(ship_pos),
+            Strategies.attack_enemy_bases.priority
+        )
+
         # TODO separate phases?
-        if len(GameState.board.current_player.ships) > 5 and self._ship_is_attacker(ship):
+        if ship.halite == 0 and len(GameState.board.current_player.ships) > 5 and self._ship_is_attacker(ship):
             if ship.halite == 0:
                 combination.add(attack_enemy_miners)
             else:
                 combination.add(return_halite)
+            total = combination.total()
+            logging.info(f"TOTAL            {total}")
+            ship.next_action = action_from_force(total, 0)
+        elif ship.halite == 0 and len(GameState.board.current_player.ships) > 10 and self._ship_is_kamikaze(ship):
+            combination.add(attack_enemy_bases)
             total = combination.total()
             logging.info(f"TOTAL            {total}")
             ship.next_action = action_from_force(total, 0)
@@ -246,3 +269,9 @@ class Commander:
         ship_id, _ = ship.id.split('-')
         ship_id = int(ship_id)
         return ship_id % ATTACKER_RATIO == 0
+
+    def _ship_is_kamikaze(self, ship):
+        KAMIKAZE_RATIO = 5
+        ship_id, _ = ship.id.split('-')
+        ship_id = int(ship_id)
+        return ship_id % KAMIKAZE_RATIO == 0
