@@ -183,10 +183,9 @@ class Commander:
         self.planner.reserve_action(ship, ship.next_action)
 
     def _build_ships(self):
-        next_board = GameState.board.next()
         for base in GameState.board.current_player.shipyards:
             if self._can_build_ship() and Strategies.expand.priority == 0:
-                if next_board.shipyards[base.id].cell.ship is None:
+                if not self.planner.at(base.position.norm):
                     base.next_action = ShipyardAction.SPAWN
 
     @staticmethod
