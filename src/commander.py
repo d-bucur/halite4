@@ -33,8 +33,8 @@ class Strategies:
 
         expansion_map = np.copy(halite_map)
         for base in GameState.board.shipyards.values():
-            expansion_map[base.position.norm] = -400
-        expansion_map = gaussian_filter(expansion_map, sigma=2, mode='wrap') * 5
+            expansion_map[base.position.norm] = -500
+        expansion_map = gaussian_filter(expansion_map, sigma=2.5, mode='wrap') * 5
         expansion_map -= halite_map
         Strategies.expand = AttractionMap(expansion_map)
 
@@ -65,8 +65,8 @@ class Strategies:
 
         return_halite = np.zeros(GameState.map_size())
         for base in GameState.board.current_player.shipyards:
-            return_halite[base.position.norm] = 6000
-        return_halite = gaussian_filter(return_halite, sigma=3, mode='wrap')
+            return_halite[base.position.norm] = 5500
+        return_halite = gaussian_filter(return_halite, sigma=2.7, mode='wrap')
         Strategies.return_halite = AttractionMap(return_halite)
 
 
@@ -113,14 +113,14 @@ class Commander:
             Strategies.expand.priority
         )
 
-        '''
         # Avoid colliding
+        friendlies_map = self._calc_friendlies_map(ship)
+        Strategies.avoid_friendlies_dict[ship.id] = friendlies_map
         avoid_clustering = ContributingForce(
             'avoid friendlies',
-            self._calc_friendlies_map(ship).flow_at(ship_pos),
-            Strategies.avoid_friendlies.priority
+            friendlies_map.flow_at(ship_pos),
+            0.2
         )
-        '''
 
         mine_priority = Strategies.mine_halite.priority
         if ship.cell.halite > 250:
@@ -144,9 +144,10 @@ class Commander:
             Strategies.return_halite.priority
         )
 
-        if expand.weight > 0:
+        if expand.weight > 0 and ship.halite == 0:
             combination.add(expand)
         if ship.cell.halite < 200 and Strategies.mine_halite_longterm.value_at(ship_pos) < 10:
+            combination.add(avoid_clustering)
             combination.add(mine_longterm)
         elif ship.halite > RETURN_TRESHOLD:
             combination.add(return_halite)
@@ -156,7 +157,10 @@ class Commander:
         logging.info(f"TOTAL            {total}")
         ship.next_action = action_from_force(total, FORCE_CUTOFF)
 
-        if not ship.next_action and Strategies.expand.priority >= 5 and self._can_build_base():
+        if not ship.next_action\
+                and Strategies.expand.priority >= 5\
+                and self._can_build_base()\
+                and Strategies.expand.value_at(ship_pos) > 0:
             ship.next_action = ShipAction.CONVERT
 
         MIN_HALITE_TO_STAND = 75
@@ -193,8 +197,8 @@ class Commander:
         friendly_ships_map = np.zeros(GameState.map_size())
         for other_ship in GameState.board.current_player.ships:
             if other_ship.id != ship.id:
-                friendly_ships_map[other_ship.position.norm] = -150
-        friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=0.5, mode='wrap')
+                friendly_ships_map[other_ship.position.norm] = -250
+        friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=1, mode='wrap')
         friendlies_map = AttractionMap(friendly_ships_map)
         Strategies.avoid_friendlies_dict[ship.id] = friendlies_map
         return friendlies_map
