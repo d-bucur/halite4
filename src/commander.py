@@ -100,8 +100,9 @@ class Commander:
                 Strategies.expand.priority = 5
             else:
                 Strategies.expand.priority = 0
-        if self._turns_remaining() < 50:
+        if self._turns_remaining() < 100:
             Strategies.return_halite.priority = 50
+            Strategies.expand.priority = 0
 
     def _make_action(self, ship):
         FORCE_CUTOFF = 1
@@ -165,6 +166,7 @@ class Commander:
                 and self._can_build_base()\
                 and Strategies.expand.value_at(ship_pos) > 0:
             ship.next_action = ShipAction.CONVERT
+            Strategies.expand.priority = 0
 
         MIN_HALITE_TO_STAND = 75
         if ship.cell.halite < MIN_HALITE_TO_STAND:
@@ -180,7 +182,8 @@ class Commander:
 
     def _build_ships(self):
         for base in GameState.board.current_player.shipyards:
-            if self._can_build_ship() and Strategies.expand.priority == 0:
+            STOP_BUILDING_SHIPS_TURN = 150
+            if self._can_build_ship() and Strategies.expand.priority == 0 and self._turns_remaining() > STOP_BUILDING_SHIPS_TURN:
                 if not self.planner.at(base.position.norm):
                     base.next_action = ShipyardAction.SPAWN
 
