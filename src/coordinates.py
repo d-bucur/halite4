@@ -61,6 +61,21 @@ class P(Point):
                 return ShipAction.SOUTH
         return None
 
+    @staticmethod
+    def from_action(action: ShipAction) -> Optional['P']:
+        if action == ShipAction.WEST:
+            return P(0, -1)
+        if action == ShipAction.EAST:
+            return P(0, 1)
+        if action == ShipAction.NORTH:
+            return P(-1, 0)
+        if action == ShipAction.SOUTH:
+            return P(1, 0)
+        if action == ShipAction.CONVERT:
+            return None
+        if action is None:
+            return P(0, 0)
+
     def __repr__(self):
         return f"P({self[0]}, {self[1]})"
 

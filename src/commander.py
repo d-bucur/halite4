@@ -8,6 +8,7 @@ from scipy.ndimage import gaussian_filter
 from src.coordinates import P
 from src.gamestate import GameState
 from src.maps import AttractionMap, action_from_force
+from src.planner import Planner
 
 
 class Strategies:
@@ -74,12 +75,18 @@ class Strategies:
 class Commander:
     def __init__(self, configuration: Configuration):
         GameState.config = configuration
+        self.planner = Planner()
 
     def get_next_actions(self):
         Strategies.update()
+        self.planner = Planner()
         self._decide_priorities()
         for ship in GameState.board.current_player.ships:
             self._make_action(ship)
+        self.planner.resolve_collisions()
+        logging.info("Actions after collision resolution")
+        for ship in GameState.board.current_player.ships:
+            logging.info(f"{ship}: {ship.next_action}")
         self._build_ships()
         return GameState.board.current_player.next_actions
 
@@ -128,6 +135,7 @@ class Commander:
         '''
 
         # Avoid colliding into friendlies
+        '''
         AVOID_FRIENDLIES_REDUCTION_FACTOR = 5
         avoid_friendlies_force = self._calc_friendlies_map(ship).at(ship_pos, True) / AVOID_FRIENDLIES_REDUCTION_FACTOR
         avoid_friendlies_priority = Strategies.avoid_friendlies.priority
@@ -137,6 +145,7 @@ class Commander:
             avoid_friendlies_force,
             avoid_friendlies_priority
         )
+        '''
 
         # Mine
         MAX_HALITE_X_SHIP = 500
@@ -162,14 +171,16 @@ class Commander:
         direction = total_force / total_priorities
         add_force('TOTAL', direction, 1)
         ship.next_action = action_from_force(direction, FORCE_CUTOFF)
+
+        if not ship.next_action and Strategies.expand.priority >= 5 and self._can_build_base():
+            ship.next_action = ShipAction.CONVERT
+
         MIN_HALITE_TO_STAND = 75
         if not ship.next_action and ship.cell.halite < MIN_HALITE_TO_STAND:
             ship.next_action = action_from_force(direction, 0)
             logging.info("Avoided standing still")
         logging.info(f'Action {ship.next_action}')
-
-        if not ship.next_action and Strategies.expand.priority >= 5 and self._can_build_base():
-            ship.next_action = ShipAction.CONVERT
+        self.planner.reserve_action(ship, ship.next_action)
 
     def _build_ships(self):
         next_board = GameState.board.next()
