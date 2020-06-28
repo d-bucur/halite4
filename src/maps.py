@@ -1,7 +1,8 @@
 import logging
 import random
+from collections import deque
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Callable
 
 import numpy as np
 from kaggle_environments.envs.halite.helpers import ShipAction
@@ -77,6 +78,30 @@ def make_field(arr: np.ndarray):
             else:
                 dy[(x, y)] = next - prev
     return [dx, dy]
+
+
+def _neighbors(p: P, size):
+    yield (p + P(0, 1)).resize(size)
+    yield (p + P(1, 0)).resize(size)
+    yield (p + P(-1, 0)).resize(size)
+    yield (p + P(0, -1)).resize(size)
+
+
+def visit_map(arr: np.ndarray, start_points: List[P], start_values: float, step_func: Callable):
+    frontier = deque()
+    visited = set()
+    for p in start_points:
+        arr[p] = start_values
+        frontier.append((p, start_values))
+        visited.add(p)
+    while frontier:
+        p, last_val = frontier.popleft()
+        for neigh in _neighbors(p, arr.shape[0]):
+            if neigh not in visited:
+                visited.add(neigh)
+                next_val = step_func(last_val)
+                arr[neigh] = next_val
+                frontier.append((neigh, next_val))
 
 
 def action_from_force(f: P, cutoff: float = 0) -> Optional[ShipAction]:

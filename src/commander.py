@@ -7,7 +7,7 @@ from kaggle_environments.envs.halite.helpers import Configuration, ShipAction, S
 from scipy.ndimage import gaussian_filter
 
 from src.gamestate import GameState
-from src.maps import AttractionMap, action_from_force, ForceCombination, ContributingForce
+from src.maps import AttractionMap, action_from_force, ForceCombination, ContributingForce, visit_map
 from src.planner import Planner
 
 
@@ -63,10 +63,13 @@ class Strategies:
         Strategies.friendly_bases = AttractionMap(friendly_bases)
         '''
 
-        return_halite = np.zeros(GameState.map_size())
-        for base in GameState.board.current_player.shipyards:
-            return_halite[base.position.norm] = 5500
-        return_halite = gaussian_filter(return_halite, sigma=2.7, mode='wrap')
+        return_halite = np.empty(GameState.map_size())
+        visit_map(
+            return_halite,
+            (s.position.norm for s in GameState.board.current_player.shipyards),
+            100,
+            lambda x: x * 0.85
+        )
         Strategies.return_halite = AttractionMap(return_halite)
 
 
