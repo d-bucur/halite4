@@ -7,7 +7,7 @@ from scipy.ndimage import gaussian_filter
 
 from src.coordinates import P
 from src.gamestate import GameState
-from src.maps import AttractionMap, action_from_force
+from src.maps import AttractionMap, action_from_force, ForceCombination, ContributingForce
 from src.planner import Planner
 
 
@@ -109,21 +109,17 @@ class Commander:
 
     def _make_action(self, ship):
         FORCE_CUTOFF = 5
-        total_force = P(0, 0)
-        total_priorities = 0
         ship_pos = ship.position.norm
         logging.info(f"--------- {ship}")
         logging.info(f"cell halite {ship.cell.halite}, ship halite {ship.halite}")
+        combination = ForceCombination()
 
-        def add_force(name: str, f: P, prio: float):
-            nonlocal total_priorities, total_force
-            logging.info(f"{name:16} {f*prio} = {f} * {prio:0.1f}")
-            total_priorities += prio
-            total_force += f * prio
-
-        # TODO these seem independent. Should extract to strategy types
         # Create new bases
-        add_force('expand', Strategies.expand.at(ship_pos), Strategies.expand.priority)
+        expand = ContributingForce(
+            'expand',
+            Strategies.expand.at(ship_pos),
+            Strategies.expand.priority
+        )
 
         '''
         # Get away from friendly shipyards
@@ -151,33 +147,43 @@ class Commander:
         MAX_HALITE_X_SHIP = 500
         mine_force = Strategies.mine_halite.at(ship_pos) / 5
         cell_halite_modifier = ship.cell.halite / GameState.config.max_cell_halite * 3 + 1
-        # logging.info(f'current halite priority booster = {cell_halite_modifier}')
         carrying_halite_modifier = max(0, (MAX_HALITE_X_SHIP - ship.halite) / MAX_HALITE_X_SHIP)
         mine_priority = Strategies.mine_halite.priority * carrying_halite_modifier * cell_halite_modifier
-        add_force('mine', mine_force, mine_priority)
+        mine = ContributingForce(
+            'mine',
+            mine_force,
+            mine_priority
+        )
 
-        add_force(
+        mine_longterm = ContributingForce(
             'mine longterm',
             Strategies.mine_halite_longterm.at(ship_pos),
             Strategies.mine_halite_longterm.priority * (500 - ship.cell.halite) / 500 * carrying_halite_modifier
         )
 
-
         # Return halite
         RETURN_TRESHOLD = 500
         return_halite_priority = Strategies.return_halite.priority * (ship.halite / RETURN_TRESHOLD)
-        add_force('return halite', Strategies.return_halite.at(ship_pos), return_halite_priority)
+        return_halite = ContributingForce(
+            'return halite',
+            Strategies.return_halite.at(ship_pos),
+            return_halite_priority
+        )
 
-        direction = total_force / total_priorities
-        add_force('TOTAL', direction, 1)
-        ship.next_action = action_from_force(direction, FORCE_CUTOFF)
+        combination.add(expand)
+        combination.add(mine)
+        combination.add(mine_longterm)
+        combination.add(return_halite)
+        total = combination.total()
+        logging.info(f"TOTAL            {total}")
+        ship.next_action = action_from_force(total, FORCE_CUTOFF)
 
         if not ship.next_action and Strategies.expand.priority >= 5 and self._can_build_base():
             ship.next_action = ShipAction.CONVERT
 
         MIN_HALITE_TO_STAND = 75
         if not ship.next_action and ship.cell.halite < MIN_HALITE_TO_STAND:
-            ship.next_action = action_from_force(direction, 0)
+            ship.next_action = action_from_force(total, 0)
             logging.info("Avoided standing still")
         logging.info(f'Action {ship.next_action}')
         self.planner.reserve_action(ship, ship.next_action)

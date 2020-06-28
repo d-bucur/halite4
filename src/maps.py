@@ -1,6 +1,7 @@
+import logging
 import random
-from enum import IntEnum
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, List
 
 import numpy as np
 from kaggle_environments.envs.halite.helpers import ShipAction
@@ -42,10 +43,6 @@ class AttractionMap:
                 dy = self.flow[1][(x, y_1)]
 
         return P(dx, dy)
-
-
-def make_field_gradient(arr: np.ndarray) -> FieldType:
-    return np.gradient(arr)
 
 
 def make_field(arr: np.ndarray):
@@ -97,39 +94,28 @@ def action_from_force(f: P, cutoff: float = 0) -> Optional[ShipAction]:
             return ShipAction.WEST
 
 
-class FieldDirection(IntEnum):
-    STAND = 0
-    UP = 1
-    DOWN = 2
-    LEFT = 3
-    RIGHT = 4
+@dataclass
+class ContributingForce:
+    name: str
+    force: P
+    weight: float
+
+    def __str__(self):
+        return f"{self.name:16} {self.force*self.weight} = {self.force} * {self.weight:0.1f}"
 
 
-_neighbor_tiles = {
-    P(0, 1): FieldDirection.RIGHT,
-    P(1, 0): FieldDirection.DOWN,
-    P(-1, 0): FieldDirection.UP,
-    P(0, -1): FieldDirection.LEFT
-}
+class ForceCombination:
+    def __init__(self):
+        self._forces: List[ContributingForce] = []
 
+    def add(self, force: ContributingForce):
+        self._forces.append(force)
+        logging.info(force)
 
-def make_field_discrete(array: np.ndarray, cutoff) -> FieldType:
-    gradient = np.gradient(array)
-    field = gradient[0]
-    for curr_pos, val in np.ndenumerate(array):
-        field[curr_pos] = action_from_force(P(gradient[0][curr_pos], gradient[1][curr_pos]), cutoff)
-    return field
-
-
-def _make_field_iterating(array: np.ndarray) -> FieldType:
-    field = np.zeros(array.shape)
-    for curr_pos, val in np.ndenumerate(array):
-        max_pos, max_val = None, None
-        for delta_pos in _neighbor_tiles.keys():
-            adj_pos = delta_pos + curr_pos
-            adj_pos = adj_pos.resize(array.shape[0])
-            if not max_pos or field[adj_pos] > max_val:
-                max_val = field[adj_pos]
-                max_pos = _neighbor_tiles[delta_pos]
-        field[curr_pos] = max_pos.value if max_pos else None
-    return field
+    def total(self) -> P:
+        total_force = P(0, 0)
+        total_weights = 0
+        for f in self._forces:
+            total_force += f.force * f.weight
+            total_weights += f.weight
+        return total_force / total_weights
