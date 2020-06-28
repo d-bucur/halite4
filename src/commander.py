@@ -20,6 +20,7 @@ class Strategies:
     avoid_friendlies: AttractionMap = None
     avoid_friendlies_dict: Dict[str, AttractionMap] = {}
     friendly_bases: AttractionMap = None
+    attack_enemy_miners: AttractionMap = None
 
     @classmethod
     def update(cls):
@@ -62,6 +63,18 @@ class Strategies:
         friendly_bases = gaussian_filter(friendly_bases, sigma=0.5, mode='wrap')
         Strategies.friendly_bases = AttractionMap(friendly_bases)
         '''
+
+        me = GameState.board.current_player_id
+        attack_enemy_miners = np.empty(GameState.map_size())
+        visit_map(
+            attack_enemy_miners,
+            (s.position.norm
+             for s in GameState.board.ships.values()
+             if s.player_id != me and s.halite > 100),
+            100,
+            lambda x: max(0, x-10)
+        )
+        Strategies.attack_enemy_miners = AttractionMap(attack_enemy_miners)
 
         return_halite = np.empty(GameState.map_size())
         visit_map(
@@ -148,34 +161,50 @@ class Commander:
             Strategies.return_halite.priority
         )
 
-        if expand.weight > 0 and ship.halite == 0:
-            combination.add(expand)
-        if ship.cell.halite < 200 and Strategies.mine_halite_longterm.value_at(ship_pos) < 10:
-            combination.add(avoid_clustering)
-            combination.add(mine_longterm)
-        elif ship.halite > RETURN_TRESHOLD:
-            combination.add(return_halite)
+        attack_enemy_miners = ContributingForce(
+            'attack enemy miners',
+            Strategies.attack_enemy_miners.flow_at(ship_pos),
+            Strategies.attack_enemy_miners.priority
+        )
+
+        # TODO separate phases?
+        if len(GameState.board.current_player.ships) > 5 and self._ship_is_attacker(ship):
+            if ship.halite == 0:
+                combination.add(attack_enemy_miners)
+            else:
+                combination.add(return_halite)
+            total = combination.total()
+            logging.info(f"TOTAL            {total}")
+            ship.next_action = action_from_force(total, 0)
         else:
-            combination.add(mine)
-        total = combination.total()
-        logging.info(f"TOTAL            {total}")
-        ship.next_action = action_from_force(total, FORCE_CUTOFF)
+            if expand.weight > 0 and ship.halite == 0:
+                combination.add(expand)
+            if ship.cell.halite < 200 and Strategies.mine_halite_longterm.value_at(ship_pos) < 10:
+                combination.add(avoid_clustering)
+                combination.add(mine_longterm)
+            elif ship.halite > RETURN_TRESHOLD:
+                combination.add(return_halite)
+            else:
+                combination.add(mine)
+            total = combination.total()
+            logging.info(f"TOTAL            {total}")
+            ship.next_action = action_from_force(total, FORCE_CUTOFF)
 
-        if not ship.next_action\
-                and Strategies.expand.priority >= 5\
-                and self._can_build_base()\
-                and Strategies.expand.value_at(ship_pos) > 0:
-            ship.next_action = ShipAction.CONVERT
-            Strategies.expand.priority = 0
+            if not ship.next_action\
+                    and Strategies.expand.priority >= 5\
+                    and self._can_build_base()\
+                    and Strategies.expand.value_at(ship_pos) > 0:
+                ship.next_action = ShipAction.CONVERT
+                Strategies.expand.priority = 0
 
-        MIN_HALITE_TO_STAND = 75
-        if ship.cell.halite < MIN_HALITE_TO_STAND:
-            if not ship.next_action:
-                logging.info("Moving to any flow direction")
-                ship.next_action = action_from_force(total, 0)
-            if not ship.next_action:
-                logging.info("Moving randomly")
-                ship.next_action = self._random_action()
+            MIN_HALITE_TO_STAND = 75
+            if ship.cell.halite < MIN_HALITE_TO_STAND:
+                if not ship.next_action:
+                    logging.info("Moving to any flow direction")
+                    ship.next_action = action_from_force(total, 0)
+                if not ship.next_action:
+                    logging.info("Moving randomly")
+                    ship.next_action = self._random_action()
 
         logging.info(f'Action {ship.next_action}')
         self.planner.reserve_action(ship, ship.next_action)
@@ -211,3 +240,9 @@ class Commander:
 
     def _random_action(self):
         return random.choice((ShipAction.NORTH, ShipAction.EAST, ShipAction.SOUTH, ShipAction.WEST))
+
+    def _ship_is_attacker(self, ship: Ship):
+        ATTACKER_RATIO = 3
+        ship_id, _ = ship.id.split('-')
+        ship_id = int(ship_id)
+        return ship_id % ATTACKER_RATIO == 0

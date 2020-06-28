@@ -2,7 +2,7 @@ import logging
 import random
 from collections import deque
 from dataclasses import dataclass
-from typing import Optional, List, Callable
+from typing import Optional, List, Callable, Iterable
 
 import numpy as np
 from kaggle_environments.envs.halite.helpers import ShipAction
@@ -87,7 +87,7 @@ def _neighbors(p: P, size):
     yield (p + P(0, -1)).resize(size)
 
 
-def visit_map(arr: np.ndarray, start_points: List[P], start_values: float, step_func: Callable):
+def visit_map(arr: np.ndarray, start_points: Iterable[P], start_values: float, step_func: Callable):
     frontier = deque()
     visited = set()
     for p in start_points:
