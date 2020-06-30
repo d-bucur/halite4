@@ -8,6 +8,10 @@ import src.monkeypatch_halite
 commander = None
 
 
+def c():
+    return commander
+
+
 def agent(obs, config):
     global commander
     board = Board(obs, config)

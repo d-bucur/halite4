@@ -48,6 +48,13 @@ class AttractionMap:
     def value_at(self, pos):
         return self.array[pos]
 
+    def get_force(self, pos: P, name: str):
+        return ContributingForce(
+            name,
+            self.flow_at(pos),
+            self.priority
+        )
+
 
 def make_field(arr: np.ndarray):
     # x derivate
