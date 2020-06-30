@@ -1,4 +1,5 @@
 import numpy as np
+from kaggle_environments.envs.halite.helpers import Ship
 from scipy.ndimage import gaussian_filter
 
 from src.gamestate import GameState
@@ -11,10 +12,10 @@ class Strategy:
         self.mine_halite_longterm = make_halite_longterm_map(self.mine_halite)
         self.return_halite = make_return_halite_map()
         self.expand = make_expand_map(self.mine_halite)
-        # avoid_enemies
-        # avoid_friendlies
+        self.avoid_friendlies = {}
         self.attack_enemy_miners = make_attack_enemy_miners_map()
         self.attack_enemy_bases = make_attack_enemy_bases_map()
+        # avoid_enemies
 
 
 def make_halite_map():
@@ -75,6 +76,15 @@ def make_attack_enemy_bases_map():
         lambda x: max(0, x - 10)
     )
     return AttractionMap(attack_enemy_bases)
+
+
+def make_friendlies_map(ship: Ship) -> AttractionMap:
+    friendly_ships_map = np.zeros(GameState.map_size())
+    for other_ship in GameState.board.current_player.ships:
+        if other_ship.id != ship.id:
+            friendly_ships_map[other_ship.position.norm] = -250
+    friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=1, mode='wrap')
+    return AttractionMap(friendly_ships_map)
 
 '''
 threat_map = np.zeros(GameState.map_size())

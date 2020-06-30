@@ -8,7 +8,7 @@ from scipy.ndimage import gaussian_filter
 from src.gamestate import GameState
 from src.maps import AttractionMap, action_from_force, ForceCombination, ContributingForce
 from src.planner import Planner
-from src.strategies import Strategy
+from src.strategies import Strategy, make_friendlies_map
 
 
 class Commander:
@@ -50,15 +50,6 @@ class Commander:
         logging.info(f"cell halite {ship.cell.halite}, ship halite {ship.halite}")
         combination = ForceCombination()
 
-        # Avoid colliding
-        '''friendlies_map = self._calc_friendlies_map(ship)
-        Strategies.avoid_friendlies_dict[ship.id] = friendlies_map
-        avoid_clustering = ContributingForce(
-            'avoid friendlies',
-            friendlies_map.flow_at(ship_pos),
-            0.2
-        )'''
-
         if ship.cell.halite > 250:
             self.strategy.mine_halite.priority *= 2
         mine = self.strategy.mine_halite.get_force(ship_pos, 'mine')
@@ -67,6 +58,7 @@ class Commander:
         return_halite = self.strategy.return_halite.get_force(ship_pos, 'return halite')
         attack_enemy_miners = self.strategy.attack_enemy_miners.get_force(ship_pos, 'attack enemy miners')
         attack_enemy_bases = self.strategy.attack_enemy_bases.get_force(ship_pos, 'attack enemy bases')
+        avoid_clustering = make_friendlies_map(ship).get_force(ship_pos, 'avoid friendlies', 0.2)
 
         RETURN_TRESHOLD = 350
         # TODO separate phases?
@@ -87,7 +79,7 @@ class Commander:
             if expand.weight > 0 and ship.halite == 0:
                 combination.add(expand)
             if ship.cell.halite < 200 and self.strategy.mine_halite_longterm.value_at(ship_pos) < 10:
-                # combination.add(avoid_clustering) # TODO
+                combination.add(avoid_clustering)
                 combination.add(mine_longterm)
             elif ship.halite > RETURN_TRESHOLD:
                 combination.add(return_halite)
@@ -134,16 +126,6 @@ class Commander:
     @staticmethod
     def _can_build_ship():
         return GameState.board.current_player.halite >= GameState.config.spawn_cost
-
-    def _calc_friendlies_map(self, ship: Ship) -> AttractionMap:
-        friendly_ships_map = np.zeros(GameState.map_size())
-        for other_ship in GameState.board.current_player.ships:
-            if other_ship.id != ship.id:
-                friendly_ships_map[other_ship.position.norm] = -250
-        friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=1, mode='wrap')
-        friendlies_map = AttractionMap(friendly_ships_map)
-        self.strategy.avoid_friendlies_dict[ship.id] = friendlies_map
-        return friendlies_map
 
     def _random_action(self):
         return random.choice((ShipAction.NORTH, ShipAction.EAST, ShipAction.SOUTH, ShipAction.WEST))

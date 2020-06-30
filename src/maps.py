@@ -29,7 +29,6 @@ class AttractionMap:
         # escape local minimums
         x_1 = (x + 1) % GameState.config.size
         if escape_mins and dx <= MIN_CUTOFF and v < self.array[(x - 1, y)] and v < self.array[(x_1, y)]:
-            # TODO check index ranges
             if random.randint(0, 1) == 0:
                 dx = self.flow[0][(x - 1, y)]
             else:
@@ -37,7 +36,6 @@ class AttractionMap:
 
         y_1 = (y + 1) % GameState.config.size
         if escape_mins and dy <= MIN_CUTOFF and v < self.array[(x, y - 1)] and v < self.array[(x, y_1)]:
-            # TODO check index ranges
             if random.randint(0, 1) == 0:
                 dy = self.flow[1][(x, y - 1)]
             else:
@@ -48,11 +46,11 @@ class AttractionMap:
     def value_at(self, pos):
         return self.array[pos]
 
-    def get_force(self, pos: P, name: str):
+    def get_force(self, pos: P, name: str, weight_override: Optional[float] = None):
         return ContributingForce(
             name,
             self.flow_at(pos),
-            self.priority
+            weight_override if weight_override else self.priority
         )
 
 
