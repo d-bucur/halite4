@@ -56,7 +56,8 @@ class Commander:
         return_halite = self.strategy.return_halite.get_force(ship_pos, 'return halite')
         attack_enemy_miners = self.strategy.attack_enemy_miners.get_force(ship_pos, 'attack enemy miners')
         attack_enemy_bases = self.strategy.attack_enemy_bases.get_force(ship_pos, 'attack enemy bases')
-        avoid_clustering = make_friendlies_map(ship).get_force(ship_pos, 'avoid friendlies', 0.2)
+        avoid_clustering = make_friendlies_map(ship, cache=self.strategy.avoid_friendlies)\
+            .get_force(ship_pos, 'avoid friendlies', 0.2)
 
         RETURN_TRESHOLD = 350
         # TODO separate phases?

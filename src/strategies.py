@@ -80,6 +80,16 @@ def make_attack_enemy_bases_map():
     return AttractionMap(attack_enemy_bases)
 
 
+def cachable(f):
+    def _inner(ship: Ship, cache=None):
+        res = f(ship)
+        if cache is not None:
+            cache[ship.id] = res
+        return res
+    return _inner
+
+
+@cachable
 def make_friendlies_map(ship: Ship) -> AttractionMap:
     friendly_ships_map = np.zeros(GameState.map_size())
     for other_ship in GameState.board.current_player.ships:
@@ -89,6 +99,7 @@ def make_friendlies_map(ship: Ship) -> AttractionMap:
     return AttractionMap(friendly_ships_map)
 
 
+@cachable
 def make_cohesion_map(ship: Ship) -> AttractionMap:
     cohesion = np.empty(GameState.map_size())
     visit_map(
