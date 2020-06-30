@@ -1,12 +1,10 @@
 import logging
 import random
 
-import numpy as np
 from kaggle_environments.envs.halite.helpers import Configuration, ShipAction, ShipyardAction, Ship
-from scipy.ndimage import gaussian_filter
 
 from src.gamestate import GameState
-from src.maps import AttractionMap, action_from_force, ForceCombination, ContributingForce
+from src.maps import action_from_force, ForceCombination
 from src.planner import Planner
 from src.strategies import Strategy, make_friendlies_map
 
@@ -127,16 +125,19 @@ class Commander:
     def _can_build_ship():
         return GameState.board.current_player.halite >= GameState.config.spawn_cost
 
-    def _random_action(self):
+    @staticmethod
+    def _random_action():
         return random.choice((ShipAction.NORTH, ShipAction.EAST, ShipAction.SOUTH, ShipAction.WEST))
 
-    def _ship_is_attacker(self, ship: Ship):
+    @staticmethod
+    def _ship_is_attacker(ship: Ship):
         ATTACKER_RATIO = 3
         ship_id, _ = ship.id.split('-')
         ship_id = int(ship_id)
         return ship_id % ATTACKER_RATIO == 0
 
-    def _ship_is_kamikaze(self, ship):
+    @staticmethod
+    def _ship_is_kamikaze(ship):
         KAMIKAZE_RATIO = 5
         ship_id, _ = ship.id.split('-')
         ship_id = int(ship_id)

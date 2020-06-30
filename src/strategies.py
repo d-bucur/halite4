@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from kaggle_environments.envs.halite.helpers import Ship
 from scipy.ndimage import gaussian_filter
@@ -36,7 +38,7 @@ def make_return_halite_map():
         return_halite,
         (s.position.norm for s in GameState.board.current_player.shipyards),
         100,
-        lambda x: x * 0.85
+        lambda s, d: s * (0.85 ** d)
     )
     return AttractionMap(return_halite)
 
@@ -59,7 +61,7 @@ def make_attack_enemy_miners_map():
          for s in GameState.board.ships.values()
          if s.player_id != me and s.halite > 100),
         100,
-        lambda x: max(0, x - 10)
+        lambda s, d: max(0, s - 10 * d)
     )
     return AttractionMap(attack_enemy_miners)
 
@@ -73,7 +75,7 @@ def make_attack_enemy_bases_map():
          for s in GameState.board.shipyards.values()
          if s.player_id != me),
         100,
-        lambda x: max(0, x - 10)
+        lambda s, d: max(0, s - 10 * d)
     )
     return AttractionMap(attack_enemy_bases)
 
@@ -86,27 +88,19 @@ def make_friendlies_map(ship: Ship) -> AttractionMap:
     friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=1, mode='wrap')
     return AttractionMap(friendly_ships_map)
 
-'''
-threat_map = np.zeros(GameState.map_size())
-for ship in GameState.board.ships.values():
-    if ship.player_id != GameState.board.current_player_id:
-        threat_map[ship.position.norm] = -600
-threat_map = gaussian_filter(threat_map, sigma=1.2, mode='wrap')
-Strategies.avoid_enemies = AttractionMap(threat_map)
-'''
 
-'''
-# TODO not used
-friendly_ships_map = np.zeros(GameState.map_size())
-for ship in GameState.board.current_player.ships:
-    friendly_ships_map[ship.position.norm] = -100
-#friendly_ships_map = gaussian_filter(friendly_ships_map, sigma=0.8, mode='wrap')
-Strategies.avoid_friendlies = AttractionMap(friendly_ships_map)
+def make_cohesion_map(ship: Ship) -> AttractionMap:
+    cohesion = np.empty(GameState.map_size())
+    visit_map(
+        cohesion,
+        (s.position.norm
+         for s in GameState.board.current_player.ships
+         if s.id != ship.id),
+        0,
+        lambda s, x: gaussian(100, 2.2, 1, x)
+    )
+    return AttractionMap(cohesion)
 
-# TODO not used
-friendly_bases = np.zeros(GameState.map_size())
-for base in GameState.board.current_player.shipyards:
-    friendly_bases[base.position.norm] = -180
-friendly_bases = gaussian_filter(friendly_bases, sigma=0.5, mode='wrap')
-Strategies.friendly_bases = AttractionMap(friendly_bases)
-'''
+
+def gaussian(a, b, c, x):
+    return a * math.e ** (-(x-b)**2/(2*(c**2)))

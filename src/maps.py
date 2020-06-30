@@ -92,21 +92,21 @@ def _neighbors(p: P, size):
     yield (p + P(0, -1)).resize(size)
 
 
-def visit_map(arr: np.ndarray, start_points: Iterable[P], start_values: float, step_func: Callable):
+def visit_map(arr: np.ndarray, start_points: Iterable[P], start_values: float, step_func: Callable[[float, int], float]):
     frontier = deque()
     visited = set()
     for p in start_points:
         arr[p] = start_values
-        frontier.append((p, start_values))
+        frontier.append((p, 0))
         visited.add(p)
     while frontier:
-        p, last_val = frontier.popleft()
+        p, distance = frontier.popleft()
         for neigh in _neighbors(p, arr.shape[0]):
             if neigh not in visited:
                 visited.add(neigh)
-                next_val = step_func(last_val)
+                next_val = step_func(start_values, distance+1)
                 arr[neigh] = next_val
-                frontier.append((neigh, next_val))
+                frontier.append((neigh, distance+1))
 
 
 def action_from_force(f: P, cutoff: float = 0) -> Optional[ShipAction]:
